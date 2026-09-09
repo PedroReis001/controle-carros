@@ -601,28 +601,49 @@ async function recarregarSuave(){
 const novoId = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 function semente(){
-  const s = iso(segundaDe(new Date()));
-  const a = segundaDe(new Date()); a.setDate(a.getDate()-7); const sa = iso(a);
+  const seg = new Date(segundaDe(new Date()));
+  const semN = n => { const d = new Date(seg); d.setDate(d.getDate() + n*7); return iso(d); };
+  const s = semN(0), sa = semN(-1);
   const daqui = n => { const d = new Date(); d.setDate(d.getDate()+n); return iso(d); };
   return {
     exemplo:true,
     carros:[
       {id:'c1',placa:'RJK4E21',modelo:'Chevrolet Onix 2019',motorista:'Marcelo Dias',telefone:'(21) 98888-1010',
-       valor:520,compra:52000,dia:'Sexta-feira',doc:'Em dia',docVenc:daqui(21),km:118000,obs:''},
+       valor:520,compra:52000,dia:'Sexta-feira',doc:'Em dia',docVenc:daqui(21),km:118000,obs:'',desde:semN(-6)},
       {id:'c2',placa:'LSQ7B08',modelo:'Hyundai HB20 2018',motorista:'Jefferson Luiz',telefone:'(21) 97777-2020',
-       valor:480,compra:46000,dia:'Sábado',doc:'Pendente',docVenc:daqui(-9),km:143500,obs:'Ar-condicionado fraco'},
+       valor:480,compra:46000,dia:'Sábado',doc:'Pendente',docVenc:daqui(-9),km:143500,obs:'Ar-condicionado fraco',desde:semN(-6)},
       {id:'c3',placa:'KPT2H45',modelo:'VW Voyage 2017',motorista:'Rita Almeida',telefone:'(21) 96666-3030',
-       valor:450,compra:39000,dia:'Sexta-feira',doc:'Em dia',docVenc:daqui(74),km:167200,obs:''},
+       valor:450,compra:39000,dia:'Sexta-feira',doc:'Em dia',docVenc:daqui(74),km:167200,obs:'',desde:semN(-6)},
       {id:'c4',placa:'RIO9C63',modelo:'Renault Logan 2020',motorista:'Cleber Santos',telefone:'(21) 95555-4040',
-       valor:550,compra:58000,dia:'Segunda-feira',doc:'Em dia',docVenc:daqui(48),km:91000,obs:''}
+       valor:550,compra:58000,dia:'Segunda-feira',doc:'Em dia',docVenc:daqui(48),km:91000,obs:'',desde:semN(-4)}
     ],
     pagamentos:[
-      {id:'p1',carro:'c1',semana:s, valor:520,data:s, forma:'Pix'},
-      {id:'p2',carro:'c3',semana:s, valor:200,data:s, forma:'Dinheiro'},
-      {id:'p3',carro:'c1',semana:sa,valor:520,data:sa,forma:'Pix'},
-      {id:'p4',carro:'c2',semana:sa,valor:480,data:sa,forma:'Pix'},
-      {id:'p5',carro:'c3',semana:sa,valor:450,data:sa,forma:'Dinheiro'},
-      {id:'p6',carro:'c4',semana:sa,valor:550,data:sa,forma:'Transferência'}
+      // Marcelo (c1): sempre em dia
+      {id:'p11',carro:'c1',semana:semN(-6),valor:520,data:semN(-6),forma:'Pix'},
+      {id:'p12',carro:'c1',semana:semN(-5),valor:520,data:semN(-5),forma:'Pix'},
+      {id:'p13',carro:'c1',semana:semN(-4),valor:520,data:semN(-4),forma:'Pix'},
+      {id:'p14',carro:'c1',semana:semN(-3),valor:520,data:semN(-3),forma:'Pix'},
+      {id:'p15',carro:'c1',semana:semN(-2),valor:520,data:semN(-2),forma:'Pix'},
+      {id:'p16',carro:'c1',semana:sa,valor:520,data:sa,forma:'Pix'},
+      {id:'p17',carro:'c1',semana:s, valor:520,data:s, forma:'Pix'},
+      // Jefferson (c2): atrasado — faltou 2 semanas e pagou 1 pela metade
+      {id:'p21',carro:'c2',semana:semN(-6),valor:480,data:semN(-6),forma:'Pix'},
+      {id:'p22',carro:'c2',semana:semN(-5),valor:480,data:semN(-5),forma:'Pix'},
+      {id:'p23',carro:'c2',semana:semN(-4),valor:240,data:semN(-4),forma:'Dinheiro'},
+      {id:'p25',carro:'c2',semana:semN(-2),valor:480,data:semN(-2),forma:'Pix'},
+      {id:'p26',carro:'c2',semana:sa,valor:480,data:sa,forma:'Pix'},
+      // Rita (c3): pagou tudo, e uma vez adiantou
+      {id:'p31',carro:'c3',semana:semN(-6),valor:450,data:semN(-6),forma:'Dinheiro'},
+      {id:'p32',carro:'c3',semana:semN(-5),valor:450,data:semN(-5),forma:'Dinheiro'},
+      {id:'p33',carro:'c3',semana:semN(-4),valor:450,data:semN(-4),forma:'Dinheiro'},
+      {id:'p34',carro:'c3',semana:semN(-3),valor:600,data:semN(-3),forma:'Pix'},
+      {id:'p35',carro:'c3',semana:semN(-2),valor:450,data:semN(-2),forma:'Dinheiro'},
+      {id:'p36',carro:'c3',semana:sa,valor:450,data:sa,forma:'Dinheiro'},
+      {id:'p37',carro:'c3',semana:s, valor:200,data:s, forma:'Dinheiro'},
+      // Cleber (c4): começou faz 4 semanas, deixou a última passar
+      {id:'p41',carro:'c4',semana:semN(-4),valor:550,data:semN(-4),forma:'Transferência'},
+      {id:'p42',carro:'c4',semana:semN(-3),valor:550,data:semN(-3),forma:'Transferência'},
+      {id:'p43',carro:'c4',semana:semN(-2),valor:550,data:semN(-2),forma:'Transferência'}
     ],
     gastos:[
       {id:'g1',carro:'c1',data:daqui(-86),categoria:'Pneus',descricao:'Quatro pneus novos',
@@ -651,6 +672,34 @@ function situacao(carro, sem){
   const passada = sem < iso(segundaDe(new Date()));
   if(pago > 0) return {tipo:passada?'atr':'pend', texto:`Falta ${moeda(carro.valor-pago)}`, pago};
   return {tipo:passada?'atr':'pend', texto:passada?'Não pagou':'A receber', pago};
+}
+
+/* ---------------- caderneta (dívida acumulada) ---------------- *
+ * Soma o que cada motorista devia ter pago (uma semana de aluguel por
+ * semana, desde que o aluguel começou) menos o que realmente pagou.
+ * A semana atual não entra — só semanas já fechadas. Pagar a mais numa
+ * semana abate a dívida das outras (pode ficar "adiantado"). */
+function inicioCobranca(carro){
+  if(carro.desde) return segundaDe(new Date(carro.desde + 'T12:00'));
+  const pagas = dados.pagamentos.filter(p => p.carro === carro.id).map(p => p.semana).sort();
+  if(pagas.length) return segundaDe(new Date(pagas[0] + 'T12:00'));
+  return segundaDe(new Date());
+}
+function semanasCobranca(carro){
+  const fim = segundaDe(new Date());              // a semana atual fica de fora
+  const out = [];
+  for(let d = inicioCobranca(carro); d < fim; d.setDate(d.getDate() + 7)) out.push(iso(new Date(d)));
+  return out.slice(-104);                         // trava: no máximo 2 anos pra trás
+}
+function caderneta(carro){
+  const valor = Number(carro.valor) || 0;
+  const semanas = semanasCobranca(carro).map(s => {
+    const pago = pagoNaSemana(carro.id, s);
+    return { semana:s, pago, falta: valor - pago };
+  });
+  const esperado = valor * semanas.length;
+  const pago = semanas.reduce((t, x) => t + x.pago, 0);
+  return { semanas, esperado, pago, saldo: esperado - pago };
 }
 
 /* vencimentos: documentação de cada carro + gastos com data de próximo vencimento */
@@ -688,6 +737,17 @@ function render(){
 const bannerExemplo = () => `<div class="aviso"><span>Estes carros são só exemplo.</span>
   <button onclick="limparExemplo()">Limpar e começar do zero</button></div>`;
 
+function voltarHoje(){ offsetSemana = 0; render(); }
+
+/* Carros cujo dia de pagamento é hoje e que ainda não quitaram esta semana. */
+function motoristasDeHoje(sem){
+  if(offsetSemana !== 0) return [];
+  const nomeHoje = new Date().toLocaleDateString('pt-BR', { weekday:'long' }).toLowerCase();
+  return dados.carros.filter(c =>
+    (c.dia || '').toLowerCase() === nomeHoje &&
+    pagoNaSemana(c.id, sem) < Number(c.valor));
+}
+
 function telaSemana(sem){
   const total = dados.carros.reduce((t,c)=>t+Number(c.valor),0);
   const receb = dados.carros.reduce((t,c)=>t+Math.min(pagoNaSemana(c.id,sem),c.valor),0);
@@ -703,46 +763,72 @@ function telaSemana(sem){
   const venc = vencimentos();
   const ordem = {atr:0,pend:1,pago:2};
   const lista = [...dados.carros].sort((a,b)=>ordem[situacao(a,sem).tipo]-ordem[situacao(b,sem).tipo]);
+  const hoje_ = motoristasDeHoje(sem);
+  const devendo = dados.carros
+    .map(c => ({ c, cad: caderneta(c) }))
+    .filter(x => x.cad.saldo > 0)
+    .sort((a,b) => b.cad.saldo - a.cad.saldo);
+
+  const cardCarro = (c, sem) => {
+    const s = situacao(c,sem);
+    return `<article class="carro">
+      <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
+      <div class="modelo">${esc(c.modelo)}</div>
+      <div class="motorista">${esc(c.motorista||'Sem motorista')} · paga ${esc(c.dia||'—')}</div>
+      <div class="rodape">
+        <span class="selo s-${s.tipo}">${s.texto}</span><span class="cresce"></span>
+        ${s.tipo==='pago' ? `<span class="num v-pago">${moeda(s.pago)}</span>`
+          : `<button class="btn" onclick="formPagamento('${c.id}')">Registrar pagamento</button>`}
+      </div>
+    </article>`;
+  };
 
   $('conteudo').innerHTML = (dados.exemplo?bannerExemplo():'')
+    + (offsetSemana!==0
+        ? `<button class="btn-vazio btn-largo" onclick="voltarHoje()">← Voltar pra semana de hoje</button>` : '')
+    + (hoje_.length
+        ? `<h3 class="sec">Hoje</h3>` + hoje_.map(c => cardCarro(c, sem)).join('') : '')
     + (venc.length ? `<h3 class="sec">Precisa de atenção</h3>` + venc.map(v=>{
         const d = diasAte(v.quando), c = carroDe(v.carro);
         return `<div class="alerta ${d<0?'venceu':''}">
           <div><strong>${esc(c.placa)} · ${esc(v.titulo)}</strong>
           <small>${esc(v.detalhe)} — ${d<0?`venceu há ${-d} dia${-d>1?'s':''}`:d===0?'vence hoje':`vence em ${d} dia${d>1?'s':''}`}</small></div>
         </div>`;
-      }).join('') + `<h3 class="sec">Aluguel da semana</h3>` : '')
-    + lista.map(c=>{
-        const s = situacao(c,sem);
-        return `<article class="carro">
-          <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
-          <div class="modelo">${esc(c.modelo)}</div>
-          <div class="motorista">${esc(c.motorista||'Sem motorista')} · paga ${esc(c.dia||'—')}</div>
-          <div class="rodape">
-            <span class="selo s-${s.tipo}">${s.texto}</span><span class="cresce"></span>
-            ${s.tipo==='pago' ? `<span class="num v-pago">${moeda(s.pago)}</span>`
-              : `<button class="btn" onclick="formPagamento('${c.id}')">Registrar pagamento</button>`}
-          </div>
-        </article>`;
-      }).join('');
+      }).join('') : '')
+    + (devendo.length
+        ? `<h3 class="sec">Devendo de semanas passadas</h3>` + devendo.map(({c, cad}) => {
+            const nSem = cad.semanas.filter(x => x.falta > 0).length;
+            return `<div class="item">
+              <div><strong>${esc(c.motorista||'Sem motorista')} · ${esc(c.placa)}</strong>
+                <small>${nSem} semana${nSem>1?'s':''} em aberto</small></div>
+              <div class="dir"><b class="num v-atr">${moeda(cad.saldo)}</b>
+                <small><button class="apagar" style="text-decoration:underline" onclick="verCarro('${c.id}')">ver</button></small></div>
+            </div>`;
+          }).join('') : '')
+    + `<h3 class="sec">Aluguel da semana</h3>`
+    + lista.map(c => cardCarro(c, sem)).join('');
 }
 
 function telaCarros(){
   $('conteudo').innerHTML = `<h2>Carros da frota</h2>`
     + (dados.exemplo?bannerExemplo():'')
     + `<button class="btn btn-largo" onclick="formCarro()">Adicionar carro</button>`
-    + (dados.carros.length ? dados.carros.map(c=>`
-        <article class="carro">
+    + (dados.carros.length ? dados.carros.map(c=>{
+        const saldo = caderneta(c).saldo;
+        return `<article class="carro">
           <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
           <div class="modelo">${esc(c.modelo)}</div>
           <div class="motorista">${esc(c.motorista||'Sem motorista')}${c.telefone?' · '+esc(c.telefone):''}</div>
           <div class="rodape">
             <span class="num">${moeda(c.valor)}</span><span class="motorista">por semana</span>
             <span class="cresce"></span>
+            ${saldo > 0 ? `<span class="selo s-atr">Devendo ${moeda(saldo)}</span>`
+              : saldo < 0 ? `<span class="selo s-pago">Adiantado ${moeda(-saldo)}</span>` : ''}
             ${c.doc==='Pendente'?`<span class="selo s-atr">Documentação pendente</span>`:''}
             <button class="btn-vazio" onclick="verCarro('${c.id}')">Ver</button>
           </div>
-        </article>`).join('')
+        </article>`;
+      }).join('')
       : `<div class="vazio"><p>Nenhum carro cadastrado ainda.</p></div>`);
 }
 
@@ -829,12 +915,32 @@ function verCarro(cid){
   const c = carroDe(cid);
   const pags = dados.pagamentos.filter(p=>p.carro===cid).sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
   const gs = dados.gastos.filter(g=>g.carro===cid).sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
+  const cad = caderneta(c);
+  const recentes = cad.semanas.slice(-8).reverse();
+  const cadResumo = cad.saldo > 0 ? `<strong class="v-atr">Devendo ${moeda(cad.saldo)}</strong>`
+    : cad.saldo < 0 ? `<strong class="v-pago">Adiantado ${moeda(-cad.saldo)}</strong>`
+    : `<strong class="v-pago">Em dia</strong>`;
   abrir(`<h3>${esc(c.placa)}</h3>
     <p class="sub">${esc(c.modelo)} · ${esc(c.motorista||'sem motorista')}${c.telefone?' · '+esc(c.telefone):''}</p>
     <div class="resumo" style="margin:12px 0">
       <div><span>Recebeu</span><strong class="v-pago">${moeda(recebidoTotal(cid))}</strong></div>
       <div><span>Gastou</span><strong class="v-atr">${moeda(gastoTotal(cid))}</strong></div>
     </div>
+    <h3 class="sec">Caderneta</h3>
+    <div class="resumo" style="margin:0 0 10px">
+      <div><span>Situação</span>${cadResumo}</div>
+      <div><span>Semanas contadas</span><strong>${cad.semanas.length}</strong></div>
+    </div>
+    ${recentes.length ? recentes.map(x => {
+      const quitado = x.falta <= 0;
+      return `<div class="item">
+        <div><strong>${dataBR(x.semana)}</strong>
+          <small>${quitado ? 'Pago ' + moeda(x.pago) : x.pago > 0 ? 'Pagou ' + moeda(x.pago) + ' — falta ' + moeda(x.falta) : 'Não pagou'}</small></div>
+        <div class="dir">${quitado
+          ? '<b class="num v-pago">✓</b>'
+          : `<button class="btn" onclick="formPagamento('${cid}','${x.semana}')">Receber</button>`}</div>
+      </div>`;
+    }).join('') : `<p class="motorista" style="margin:0 0 8px">Ainda não há semanas fechadas pra cobrar.</p>`}
     <div class="motorista">Aluguel de ${moeda(c.valor)} por semana, vence ${esc(c.dia||'—')}.
       Documentação: ${esc(c.doc||'—')}${c.docVenc?' até '+dataBR(c.docVenc):''}.
       ${c.km?'Último km anotado: '+Number(c.km).toLocaleString('pt-BR')+'.':''}</div>
@@ -852,11 +958,13 @@ function verCarro(cid){
     <div style="text-align:center;margin-top:14px"><button class="btn-vazio" style="border:none" onclick="fechar()">Fechar</button></div>`);
 }
 
-function formPagamento(cid){
-  const c = carroDe(cid), sem = iso(semanaAtiva());
+function formPagamento(cid, semArg){
+  const c = carroDe(cid);
+  const sem = semArg || iso(semanaAtiva());
+  const segDaSem = semArg ? new Date(semArg + 'T12:00') : semanaAtiva();
   const falta = Math.max(c.valor - pagoNaSemana(cid,sem), 0);
   abrir(`<h3>${esc(c.placa)} · ${esc(c.motorista||'sem motorista')}</h3>
-    <p class="sub">Semana de ${rotuloSemana(semanaAtiva())}</p>
+    <p class="sub">Semana de ${rotuloSemana(segDaSem)}</p>
     <label for="pv">Quanto ele pagou</label>
     <input id="pv" type="number" inputmode="decimal" step="0.01" value="${falta}">
     <div class="dupla">
@@ -878,7 +986,7 @@ async function salvarPagamento(cid,sem){
 }
 
 function formCarro(cid){
-  const c = cid?carroDe(cid):{placa:'',modelo:'',motorista:'',telefone:'',valor:'',compra:'',dia:'Sexta-feira',doc:'Em dia',docVenc:'',km:'',obs:''};
+  const c = cid?carroDe(cid):{placa:'',modelo:'',motorista:'',telefone:'',valor:'',compra:'',dia:'Sexta-feira',doc:'Em dia',docVenc:'',km:'',obs:'',desde:''};
   const dias = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
   abrir(`<h3>${cid?'Editar carro':'Novo carro'}</h3>
     <div class="dupla">
@@ -894,8 +1002,12 @@ function formCarro(cid){
       <div><label for="cv">Aluguel semanal (R$)</label><input id="cv" type="number" step="10" value="${c.valor}" placeholder="500"></div>
       <div><label for="cc">Valor de compra (R$)</label><input id="cc" type="number" step="100" value="${c.compra||''}" placeholder="50000"></div>
     </div>
-    <label for="cw">Dia em que o aluguel vence</label>
-    <select id="cw">${dias.map(d=>`<option ${d===c.dia?'selected':''}>${d}</option>`).join('')}</select>
+    <div class="dupla">
+      <div><label for="cw">Dia em que o aluguel vence</label>
+        <select id="cw">${dias.map(d=>`<option ${d===c.dia?'selected':''}>${d}</option>`).join('')}</select></div>
+      <div><label for="cy">Aluguel começou em</label><input id="cy" type="date" value="${c.desde||''}"></div>
+    </div>
+    <small class="motorista" style="display:block;margin-top:4px">A caderneta conta uma semana de aluguel a partir dessa data. Deixe em branco pra contar do primeiro pagamento.</small>
     <div class="dupla">
       <div><label for="cs">Documentação</label>
         <select id="cs">${['Em dia','Pendente'].map(o=>`<option ${o===c.doc?'selected':''}>${o}</option>`).join('')}</select></div>
@@ -916,7 +1028,8 @@ async function salvarCarro(cid){
   if(!valor||valor<=0) return aviso('Preencha o aluguel semanal.');
   const d = {placa,modelo,valor,motorista:$('cd').value.trim(),telefone:$('ct').value.trim(),
              compra:Number($('cc').value)||0,dia:$('cw').value,doc:$('cs').value,
-             docVenc:$('cx').value,km:Number($('ck').value)||0,obs:$('co').value.trim()};
+             docVenc:$('cx').value,km:Number($('ck').value)||0,obs:$('co').value.trim(),
+             desde:$('cy').value};
   if(cid) Object.assign(dados.carros.find(c=>c.id===cid), d);
   else dados.carros.push({id:novoId(),...d});
   await salvar(); fechar(); render(); aviso(cid?'Carro atualizado':'Carro cadastrado');
