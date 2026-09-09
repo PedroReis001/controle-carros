@@ -42,6 +42,19 @@ curl -s -w '\n[HTTP %{http_code}]\n' \
 - Voltou `[]` ou erro `401/403` → protegido, ok.
 - Voltou os dados → **exposto**; falta aplicar o RLS de `SUPABASE_SETUP.md`.
 
+## Caderneta
+
+Cada carro tem um campo "Aluguel começou em". A partir dessa data (ou do
+primeiro pagamento, se em branco), o app conta uma semana de aluguel por
+semana e compara com o que foi pago — a semana atual fica de fora. O
+resultado aparece como "Devendo R$ X" / "Adiantado R$ X" / "Em dia" na aba
+Carros, numa seção "Devendo de semanas passadas" na aba Semana, e detalhado
+semana a semana em "Ver" → Caderneta (com botão "Receber" por semana).
+
+A aba Semana também mostra uma seção **Hoje** (motoristas cujo dia de
+pagamento é hoje e ainda não quitaram) e um botão **Voltar pra semana de
+hoje** quando você navega para outra semana.
+
 ## Como os dados são salvos
 
 Como tudo fica em uma linha só, dois aparelhos editando ao mesmo tempo
