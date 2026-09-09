@@ -43,6 +43,17 @@
   .bloqueio-cartao h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:28px;margin:0 0 6px}
   .bloqueio-cartao p{color:var(--media);margin:0 0 22px}
   .bloqueio-nota{font-size:14px;margin-top:14px !important;color:var(--atr)}
+  .bloqueio-sub{color:var(--media);font-size:15px;margin:0 0 22px}
+  .pin-pontos{display:flex;gap:16px;justify-content:center;margin:0 0 26px}
+  .pin-pontos i{width:14px;height:14px;border-radius:50%;border:2px solid var(--tinta);display:block}
+  .pin-pontos i.cheio{background:var(--tinta)}
+  .pin-teclado{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:280px;margin:0 auto}
+  .pin-teclado button{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:27px;
+        padding:15px 0;border:1.5px solid var(--linha);border-radius:12px;background:var(--alto);color:var(--tinta)}
+  .pin-teclado button:active{background:var(--papel)}
+  .pin-teclado .pin-vazio{display:block}
+  .pin-link{display:block;margin:24px auto 0;font-size:15px;font-weight:600;color:var(--media);
+        text-decoration:underline;background:none;border:none}
 
   header{padding:20px 18px 6px}
   .semana-nav{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -145,7 +156,7 @@
 <body>
 
 <div class="bloqueio" id="bloqueio">
-  <div class="bloqueio-cartao">
+  <div class="bloqueio-cartao" id="cartaoLogin">
     <div class="bloqueio-icone">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5a3 3 0 0 1 6 0"/><path d="M6 8v-.5a6 6 0 0 1 12 0V8"/><rect x="4" y="8" width="16" height="12" rx="3"/><circle cx="12" cy="13.5" r="1.6"/><path d="M12 15.1V17"/></svg>
     </div>
@@ -161,6 +172,31 @@
     </form>
     <p class="bloqueio-nota" id="bloqueioNota"></p>
   </div>
+
+  <div class="bloqueio-cartao oculto" id="cartaoPin">
+    <div class="bloqueio-icone">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5a3 3 0 0 1 6 0"/><path d="M6 8v-.5a6 6 0 0 1 12 0V8"/><rect x="4" y="8" width="16" height="12" rx="3"/><circle cx="12" cy="13.5" r="1.6"/><path d="M12 15.1V17"/></svg>
+    </div>
+    <h1 id="pinTitulo">Digite seu código</h1>
+    <p class="bloqueio-sub" id="pinSub">Código de 4 números pra entrar</p>
+    <div class="pin-pontos" id="pinPontos"><i></i><i></i><i></i><i></i></div>
+    <div class="pin-teclado" id="pinTeclado">
+      <button type="button">1</button>
+      <button type="button">2</button>
+      <button type="button">3</button>
+      <button type="button">4</button>
+      <button type="button">5</button>
+      <button type="button">6</button>
+      <button type="button">7</button>
+      <button type="button">8</button>
+      <button type="button">9</button>
+      <span class="pin-vazio"></span>
+      <button type="button">0</button>
+      <button type="button" id="pinApaga" aria-label="Apagar último número">⌫</button>
+    </div>
+    <button type="button" class="pin-link" id="pinLink">Esqueci meu código</button>
+    <p class="bloqueio-nota" id="pinNota"></p>
+  </div>
 </div>
 
 <div id="appConteudo" class="oculto">
@@ -175,6 +211,7 @@
   </div>
   <div class="topo-acoes">
     <button class="btn-sync" id="btnSync">Atualizar</button>
+    <button class="btn-sync" id="btnCodigo">Código</button>
     <button class="btn-sync" id="btnSair">Sair</button>
   </div>
 </header>
@@ -251,6 +288,8 @@ const CHAVE = 'frota:dados:v2';
 
 function mostrarTelaLogin(){
   appLiberado = false;
+  $('cartaoPin').classList.add('oculto');
+  $('cartaoLogin').classList.remove('oculto');
   $('bloqueio').classList.remove('oculto');
   $('appConteudo').classList.add('oculto');
   $('loginSenha').value = '';
@@ -259,6 +298,7 @@ function mostrarTelaLogin(){
 
 function entrarNoApp(){
   $('bloqueio').classList.add('oculto');
+  $('cartaoPin').classList.add('oculto');
   $('appConteudo').classList.remove('oculto');
   iniciarApp();
 }
@@ -279,7 +319,9 @@ async function fazerLogin(e){
       : 'E-mail ou senha incorretos.';
     return;
   }
-  entrarNoApp();
+  // Logou de verdade. Se ainda não tem código rápido neste aparelho, oferece criar.
+  if(temPin()) entrarNoApp();
+  else abrirTelaPin('criar');
 }
 
 async function sair(){
@@ -293,14 +335,145 @@ async function sair(){
 
 async function iniciarSessao(){
   const { data } = await sb.auth.getSession();
-  if(data.session) entrarNoApp();
-  else mostrarTelaLogin();
+  if(data.session){
+    if(temPin()) abrirTelaPin('entrar');
+    else entrarNoApp();
+  }else{
+    mostrarTelaLogin();
+  }
   // Se o token expirar e não der pra renovar, o Supabase emite SIGNED_OUT.
   sb.auth.onAuthStateChange((evento) => {
     if(evento === 'SIGNED_OUT') mostrarTelaLogin();
   });
 }
 /* ================= FIM DO LOGIN ================= */
+
+/* ================= CÓDIGO DE ACESSO RÁPIDO (PIN) ================= *
+ * Depois de logar uma vez com e-mail e senha, a pessoa pode criar um
+ * código de 4 números pra reabrir o app sem digitar tudo de novo.
+ *
+ * O código NÃO é a segurança dos dados — quem protege os dados é a
+ * sessão do Supabase (essa sim exige e-mail e senha). O PIN é só uma
+ * tela de bloqueio local, pra conveniência, por cima do login real.
+ * Fica guardado só neste aparelho, como hash + sal (não em texto puro). */
+const CHAVE_PIN = 'frota:pin:v1';
+let pinModo = 'entrar';      // 'entrar' | 'criar' | 'confirmar'
+let pinBuffer = '';
+let pinPrimeiro = '';
+let pinTentativas = 0;
+
+function temPin(){
+  try{ return !!localStorage.getItem(CHAVE_PIN); }catch(e){ return false; }
+}
+function removerPin(){
+  try{ localStorage.removeItem(CHAVE_PIN); }catch(e){}
+}
+async function hashPin(pin, sal){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sal + '|' + pin));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function salvarPin(pin){
+  const sal = [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, '0')).join('');
+  const hash = await hashPin(pin, sal);
+  try{ localStorage.setItem(CHAVE_PIN, JSON.stringify({ sal, hash })); }catch(e){}
+}
+async function conferirPin(pin){
+  try{
+    const { sal, hash } = JSON.parse(localStorage.getItem(CHAVE_PIN));
+    return (await hashPin(pin, sal)) === hash;
+  }catch(e){ return false; }
+}
+
+function abrirTelaPin(modo){
+  pinModo = modo; pinBuffer = ''; pinPrimeiro = '';
+  $('pinNota').textContent = '';
+  $('cartaoLogin').classList.add('oculto');
+  $('cartaoPin').classList.remove('oculto');
+  $('bloqueio').classList.remove('oculto');
+  $('appConteudo').classList.add('oculto');
+  desenharTelaPin();
+}
+function desenharTelaPin(){
+  const textos = {
+    entrar:    ['Digite seu código', 'Código de 4 números pra entrar', 'Esqueci meu código'],
+    criar:     ['Crie um código', 'Escolha 4 números fáceis de lembrar', 'Agora não'],
+    confirmar: ['Confirme o código', 'Digite os mesmos 4 números de novo', 'Recomeçar']
+  }[pinModo];
+  $('pinTitulo').textContent = textos[0];
+  $('pinSub').textContent = textos[1];
+  $('pinLink').textContent = textos[2];
+  [...$('pinPontos').children].forEach((p, i) => p.classList.toggle('cheio', i < pinBuffer.length));
+}
+function digitarPin(n){
+  if(pinBuffer.length >= 4) return;
+  $('pinNota').textContent = '';
+  pinBuffer += n;
+  desenharTelaPin();
+  if(pinBuffer.length === 4) setTimeout(concluirPin, 140);
+}
+function apagarPin(){
+  pinBuffer = pinBuffer.slice(0, -1);
+  desenharTelaPin();
+}
+async function concluirPin(){
+  if(pinModo === 'criar'){
+    pinPrimeiro = pinBuffer; pinBuffer = ''; pinModo = 'confirmar';
+    desenharTelaPin();
+    return;
+  }
+  if(pinModo === 'confirmar'){
+    if(pinBuffer !== pinPrimeiro){
+      pinBuffer = ''; pinPrimeiro = ''; pinModo = 'criar';
+      desenharTelaPin();
+      $('pinNota').textContent = 'Os códigos não bateram. Escolha de novo.';
+      return;
+    }
+    await salvarPin(pinBuffer);
+    entrarNoApp();
+    aviso('Código criado');
+    return;
+  }
+  // modo 'entrar'
+  if(await conferirPin(pinBuffer)){
+    pinTentativas = 0;
+    entrarNoApp();
+  }else{
+    pinTentativas++;
+    pinBuffer = '';
+    desenharTelaPin();
+    if(pinTentativas >= 5){
+      removerPin();
+      $('pinNota').textContent = 'Muitas tentativas. Entre com e-mail e senha.';
+      setTimeout(() => { sb.auth.signOut(); mostrarTelaLogin(); }, 1400);
+    }else{
+      $('pinNota').textContent = 'Código errado (' + pinTentativas + ' de 5).';
+    }
+  }
+}
+function acaoPinLink(){
+  if(pinModo === 'entrar'){
+    removerPin();
+    mostrarTelaLogin();
+  }else if(pinModo === 'criar'){
+    entrarNoApp();
+  }else{
+    pinModo = 'criar'; pinBuffer = ''; pinPrimeiro = '';
+    desenharTelaPin();
+  }
+}
+function gerenciarCodigo(){
+  const tem = temPin();
+  abrir(`<h3>Código de acesso</h3>
+    <p class="sub">${tem
+      ? 'Você entra neste aparelho com um código de 4 números. Ele não substitui o e-mail e a senha — é só um atalho.'
+      : 'Crie um código de 4 números pra reabrir o app sem digitar e-mail e senha toda vez. Vale só neste aparelho.'}</p>
+    <div class="acoes" style="flex-direction:column">
+      <button class="btn" onclick="fechar(); abrirTelaPin('criar')">${tem ? 'Trocar código' : 'Criar código'}</button>
+      ${tem ? `<button class="btn-vazio" onclick="fechar(); removerPin(); aviso('Código removido')">Remover código</button>` : ''}
+      <button class="btn-vazio" onclick="fechar()">Cancelar</button>
+    </div>`);
+}
+/* ================= FIM DO PIN ================= */
 
 const CATEGORIAS = ['Manutenção','Pneus','Revisão','IPVA / Licenciamento','Seguro','Multa','Outro'];
 const RECORRENTES = ['IPVA / Licenciamento','Seguro','Revisão','Pneus'];
@@ -855,7 +1028,18 @@ $('btnSair').onclick = ()=>{
   confirmar('Você vai precisar entrar de novo com e-mail e senha neste aparelho.', 'Sair', sair);
 };
 
+$('btnCodigo').onclick = gerenciarCodigo;
+
 $('loginForm').addEventListener('submit', fazerLogin);
+
+// Teclado do código de acesso
+$('pinTeclado').addEventListener('click', (e)=>{
+  const b = e.target.closest('button');
+  if(!b) return;
+  if(b.id === 'pinApaga') apagarPin();
+  else digitarPin(b.textContent.trim());
+});
+$('pinLink').addEventListener('click', acaoPinLink);
 
 // Atualiza sozinho: ao voltar pro app e a cada 60s enquanto estiver aberto.
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') recarregarSuave(); });

@@ -5,7 +5,10 @@ aluguel semanal por motorista, cadastro dos carros, manutenção/gastos e
 balanço de quando cada carro se paga.
 
 - **Frontend:** HTML/CSS/JS puro, tudo em [`index.html`](index.html).
-- **Login:** [Supabase Auth](https://supabase.com) — e-mail e senha.
+- **Login:** [Supabase Auth](https://supabase.com) — e-mail e senha. Depois do
+  primeiro acesso, cada aparelho pode criar um **código de 4 números** pra
+  reabrir sem digitar tudo (fica só no aparelho, como hash; não substitui o
+  login). Botão **Código** no topo troca ou remove.
 - **Banco de dados:** Supabase — tabela `dados` (formato chave/valor; todo o
   estado do app fica em uma linha, `key = 'frota:dados:v2'`).
 - **Offline:** [`sw.js`](sw.js) guarda o "casco" do app para abrir sem internet
