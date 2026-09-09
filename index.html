@@ -717,8 +717,10 @@ function vencimentos(){
   return lista.filter(v=>diasAte(v.quando) <= 30).sort((a,b)=>a.quando.localeCompare(b.quando));
 }
 
-/* ---------------- render ---------------- */
-function render(){
+/* ---------------- render ----------------
+ * irAoTopo: só rola pro topo quando muda de aba/semana. Num lançamento
+ * (pagamento, gasto, desfazer) a tela fica onde estava. */
+function render(irAoTopo){
   const sem = iso(semanaAtiva());
   $('semTitulo').textContent = rotuloSemana(semanaAtiva());
   $('semRotulo').textContent = offsetSemana===0?'Semana atual':offsetSemana===-1?'Semana passada'
@@ -733,13 +735,13 @@ function render(){
   if(aba==='manutencao') telaManutencao();
   if(aba==='balanco') telaBalanco();
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('ativo', b.dataset.aba===aba));
-  window.scrollTo(0,0);
+  if(irAoTopo) window.scrollTo(0,0);
 }
 
 const bannerExemplo = () => `<div class="aviso"><span>Estes carros são só exemplo.</span>
   <button onclick="limparExemplo()">Limpar e começar do zero</button></div>`;
 
-function voltarHoje(){ offsetSemana = 0; render(); }
+function voltarHoje(){ offsetSemana = 0; render(true); }
 
 /* Carros cujo dia de pagamento é hoje e que ainda não quitaram esta semana. */
 function motoristasDeHoje(sem){
@@ -1154,7 +1156,7 @@ function apagarGasto(gid){
 function limparExemplo(){
   confirmar('Os quatro carros de exemplo e os lançamentos deles serão removidos. Depois é só cadastrar os carros de verdade.','Limpar exemplos', async ()=>{
     dados = {carros:[],pagamentos:[],gastos:[],exemplo:false};
-    await salvar(); aba='carros'; fechar(); render(); aviso('Pronto, agora é só cadastrar os carros');
+    await salvar(); aba='carros'; fechar(); render(true); aviso('Pronto, agora é só cadastrar os carros');
   });
 }
 
@@ -1175,9 +1177,9 @@ async function executarDesfazer(){
   if(f) await f();
 }
 
-$('semAnt').onclick = ()=>{ if(!appLiberado) return; offsetSemana--; render(); };
-$('semProx').onclick = ()=>{ if(!appLiberado) return; if(offsetSemana<0){ offsetSemana++; render(); } };
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{ if(!appLiberado) return; aba=b.dataset.aba; render(); });
+$('semAnt').onclick = ()=>{ if(!appLiberado) return; offsetSemana--; render(true); };
+$('semProx').onclick = ()=>{ if(!appLiberado) return; if(offsetSemana<0){ offsetSemana++; render(true); } };
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{ if(!appLiberado) return; aba=b.dataset.aba; render(true); });
 
 $('btnSync').onclick = async ()=>{
   $('btnSync').classList.add('rodando');
@@ -1220,7 +1222,7 @@ async function iniciarApp(){
     return;
   }
   appLiberado = true;
-  render();
+  render(true);
   if(!timerSync){
     timerSync = setInterval(()=>{ if(document.visibilityState==='visible') recarregarSuave(); }, 60000);
   }
