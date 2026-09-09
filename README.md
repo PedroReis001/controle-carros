@@ -64,6 +64,20 @@ completo (valor parcial, adiantamento, outra data/forma). Depois de
 qualquer lançamento aparece **"... · Desfazer"** por alguns segundos —
 um toque remove o lançamento.
 
+## Carro vendido — nunca perde histórico
+
+Carro tem `status`: **ativo** (padrão) ou **vendido**. Em vez de apagar um
+carro (o que apagava junto os pagamentos e gastos), você o **marca como
+vendido** em "Ver carro" — guardando **data e valor da venda**. Ele some do
+dia a dia (Semana, Hoje, alertas, lançar gasto) mas continua:
+
+- na aba Carros, numa seção **"Vendidos"** recolhida no fim;
+- na aba Balanço, com o **resultado final** (aluguel + venda − compra − gastos);
+- em "Ver carro", com o histórico e a caderneta congelados na data da venda.
+
+Dá pra **Reativar** um carro marcado por engano. Só é possível **excluir de
+vez** um carro que não tenha nenhum lançamento (cadastro errado).
+
 ## Como os dados são salvos
 
 Como tudo fica em uma linha só, dois aparelhos editando ao mesmo tempo

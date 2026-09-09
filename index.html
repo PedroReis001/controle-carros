@@ -617,7 +617,10 @@ function semente(){
       {id:'c3',placa:'KPT2H45',modelo:'VW Voyage 2017',motorista:'Rita Almeida',telefone:'(21) 96666-3030',
        valor:450,compra:39000,dia:'Sexta-feira',doc:'Em dia',docVenc:daqui(74),km:167200,obs:'',desde:semN(-6)},
       {id:'c4',placa:'RIO9C63',modelo:'Renault Logan 2020',motorista:'Cleber Santos',telefone:'(21) 95555-4040',
-       valor:550,compra:58000,dia:'Segunda-feira',doc:'Em dia',docVenc:daqui(48),km:91000,obs:'',desde:semN(-4)}
+       valor:550,compra:58000,dia:'Segunda-feira',doc:'Em dia',docVenc:daqui(48),km:91000,obs:'',desde:semN(-4)},
+      {id:'c5',placa:'GHT8J92',modelo:'Fiat Siena 2015',motorista:'Antônio Ferreira',telefone:'(21) 94444-5050',
+       valor:400,compra:31000,dia:'Sexta-feira',doc:'Em dia',docVenc:'',km:198000,obs:'Vendido — carro já rodado demais',
+       desde:semN(-20),status:'vendido',vendaData:daqui(-40),vendaValor:22000}
     ],
     pagamentos:[
       // Marcelo (c1): sempre em dia
@@ -645,7 +648,10 @@ function semente(){
       // Cleber (c4): começou faz 4 semanas, deixou a última passar
       {id:'p41',carro:'c4',semana:semN(-4),valor:550,data:semN(-4),forma:'Transferência'},
       {id:'p42',carro:'c4',semana:semN(-3),valor:550,data:semN(-3),forma:'Transferência'},
-      {id:'p43',carro:'c4',semana:semN(-2),valor:550,data:semN(-2),forma:'Transferência'}
+      {id:'p43',carro:'c4',semana:semN(-2),valor:550,data:semN(-2),forma:'Transferência'},
+      // Antônio (c5): carro vendido faz ~6 semanas
+      ...[-19,-18,-17,-16,-15,-14,-13,-12,-11,-10,-9,-7].map((n,i)=>
+        ({id:'p5'+i,carro:'c5',semana:semN(n),valor:400,data:semN(n),forma:'Dinheiro'}))
     ],
     gastos:[
       {id:'g1',carro:'c1',data:daqui(-86),categoria:'Pneus',descricao:'Quatro pneus novos',
@@ -657,13 +663,20 @@ function semente(){
       {id:'g4',carro:'c4',data:daqui(-160),categoria:'Seguro',descricao:'Seguro anual',
        oficina:'Corretora Bandeira',km:82000,valor:2400,status:'Concluída',proximo:daqui(205),obs:''},
       {id:'g5',carro:'c2',data:daqui(3),categoria:'Manutenção',descricao:'Alinhamento e balanceamento',
-       oficina:'Oficina do Marcos — Méier',km:0,valor:180,status:'Agendada',proximo:'',obs:''}
+       oficina:'Oficina do Marcos — Méier',km:0,valor:180,status:'Agendada',proximo:'',obs:''},
+      {id:'g6',carro:'c5',data:daqui(-120),categoria:'Manutenção',descricao:'Retífica do motor',
+       oficina:'Auto Center Campo Grande',km:190000,valor:3800,status:'Concluída',proximo:'',obs:''}
     ]
   };
 }
 
 /* ---------------- cálculos ---------------- */
 const carroDe = id => dados.carros.find(c=>c.id===id) || {placa:'—',modelo:'Carro removido'};
+/* status do carro: 'ativo' (padrão) ou 'vendido'. Carro antigo sem o campo = ativo. */
+const ehVendido = c => c && c.status === 'vendido';
+const carrosAtivos = () => dados.carros.filter(c => !ehVendido(c));
+const carrosVendidos = () => dados.carros.filter(ehVendido);
+const temHistorico = cid => dados.pagamentos.some(p=>p.carro===cid) || dados.gastos.some(g=>g.carro===cid);
 const pagoNaSemana = (cid,sem) => dados.pagamentos.filter(p=>p.carro===cid&&p.semana===sem).reduce((t,p)=>t+Number(p.valor),0);
 const recebidoTotal = cid => dados.pagamentos.filter(p=>p.carro===cid).reduce((t,p)=>t+Number(p.valor),0);
 const gastoTotal = cid => dados.gastos.filter(g=>g.carro===cid&&g.status!=='Agendada').reduce((t,g)=>t+Number(g.valor),0);
@@ -687,8 +700,13 @@ function inicioCobranca(carro){
   if(pagas.length) return segundaDe(new Date(pagas[0] + 'T12:00'));
   return segundaDe(new Date());
 }
+function fimCobranca(carro){
+  // carro vendido: a caderneta congela na semana da venda
+  if(ehVendido(carro) && carro.vendaData) return segundaDe(new Date(carro.vendaData + 'T12:00'));
+  return segundaDe(new Date());                   // senão, até a semana passada (a atual fica de fora)
+}
 function semanasCobranca(carro){
-  const fim = segundaDe(new Date());              // a semana atual fica de fora
+  const fim = fimCobranca(carro);
   const out = [];
   for(let d = inicioCobranca(carro); d < fim; d.setDate(d.getDate() + 7)) out.push(iso(new Date(d)));
   return out.slice(-104);                         // trava: no máximo 2 anos pra trás
@@ -707,12 +725,12 @@ function caderneta(carro){
 /* vencimentos: documentação de cada carro + gastos com data de próximo vencimento */
 function vencimentos(){
   const lista = [];
-  dados.carros.forEach(c=>{
+  carrosAtivos().forEach(c=>{
     if(c.docVenc) lista.push({carro:c.id, quando:c.docVenc, titulo:'Documentação do veículo',
       detalhe:c.doc==='Pendente'?'Marcada como pendente':'Licenciamento / IPVA'});
   });
   dados.gastos.forEach(g=>{
-    if(g.proximo) lista.push({carro:g.carro, quando:g.proximo, titulo:g.categoria, detalhe:g.descricao});
+    if(g.proximo && !ehVendido(carroDe(g.carro))) lista.push({carro:g.carro, quando:g.proximo, titulo:g.categoria, detalhe:g.descricao});
   });
   return lista.filter(v=>diasAte(v.quando) <= 30).sort((a,b)=>a.quando.localeCompare(b.quando));
 }
@@ -747,28 +765,29 @@ function voltarHoje(){ offsetSemana = 0; render(true); }
 function motoristasDeHoje(sem){
   if(offsetSemana !== 0) return [];
   const nomeHoje = new Date().toLocaleDateString('pt-BR', { weekday:'long' }).toLowerCase();
-  return dados.carros.filter(c =>
+  return carrosAtivos().filter(c =>
     (c.dia || '').toLowerCase() === nomeHoje &&
     pagoNaSemana(c.id, sem) < Number(c.valor));
 }
 
 function telaSemana(sem){
-  const total = dados.carros.reduce((t,c)=>t+Number(c.valor),0);
-  const receb = dados.carros.reduce((t,c)=>t+Math.min(pagoNaSemana(c.id,sem),c.valor),0);
+  const ativos = carrosAtivos();
+  const total = ativos.reduce((t,c)=>t+Number(c.valor),0);
+  const receb = ativos.reduce((t,c)=>t+Math.min(pagoNaSemana(c.id,sem),c.valor),0);
   $('resumo').innerHTML = `
     <div><span>Recebido</span><strong class="v-pago">${moeda(receb)}</strong></div>
     <div><span>Falta receber</span><strong class="v-falta">${moeda(Math.max(total-receb,0))}</strong></div>`;
 
-  if(!dados.carros.length){
-    $('conteudo').innerHTML = `<div class="vazio"><p>Nenhum carro cadastrado ainda.</p>
-      <button class="btn" onclick="formCarro()">Cadastrar primeiro carro</button></div>`;
+  if(!ativos.length){
+    $('conteudo').innerHTML = `<div class="vazio"><p>Nenhum carro na frota.</p>
+      <button class="btn" onclick="formCarro()">Cadastrar carro</button></div>`;
     return;
   }
   const venc = vencimentos();
   const ordem = {atr:0,pend:1,pago:2};
-  const lista = [...dados.carros].sort((a,b)=>ordem[situacao(a,sem).tipo]-ordem[situacao(b,sem).tipo]);
+  const lista = [...ativos].sort((a,b)=>ordem[situacao(a,sem).tipo]-ordem[situacao(b,sem).tipo]);
   const hoje_ = motoristasDeHoje(sem);
-  const devendo = dados.carros
+  const devendo = ativos
     .map(c => ({ c, cad: caderneta(c) }))
     .filter(x => x.cad.saldo > 0)
     .sort((a,b) => b.cad.saldo - a.cad.saldo);
@@ -815,27 +834,48 @@ function telaSemana(sem){
     + lista.map(c => cardCarro(c, sem)).join('');
 }
 
+let vendidosAbertos = false;
+function alternarVendidos(){ vendidosAbertos = !vendidosAbertos; render(); }
+
 function telaCarros(){
+  const ativos = carrosAtivos(), vendidos = carrosVendidos();
+
+  const cardAtivo = c => {
+    const saldo = caderneta(c).saldo;
+    return `<article class="carro">
+      <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
+      <div class="modelo">${esc(c.modelo)}</div>
+      <div class="motorista">${esc(c.motorista||'Sem motorista')}${c.telefone?' · '+esc(c.telefone):''}</div>
+      <div class="rodape">
+        <span class="num">${moeda(c.valor)}</span><span class="motorista">por semana</span>
+        <span class="cresce"></span>
+        ${saldo > 0 ? `<span class="selo s-atr">Devendo ${moeda(saldo)}</span>`
+          : saldo < 0 ? `<span class="selo s-pago">Adiantado ${moeda(-saldo)}</span>` : ''}
+        ${c.doc==='Pendente'?`<span class="selo s-atr">Documentação pendente</span>`:''}
+        <button class="btn-vazio" onclick="verCarro('${c.id}')">Ver</button>
+      </div>
+    </article>`;
+  };
+  const cardVendido = c => `<article class="carro">
+      <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
+      <div class="modelo">${esc(c.modelo)}</div>
+      <div class="motorista">Vendido em ${dataBR(c.vendaData)}${Number(c.vendaValor)?' por '+moeda(c.vendaValor):''}</div>
+      <div class="rodape">
+        <span class="cresce"></span>
+        <button class="btn-vazio" onclick="verCarro('${c.id}')">Ver histórico</button>
+      </div>
+    </article>`;
+
   $('conteudo').innerHTML = `<h2>Carros da frota</h2>`
     + (dados.exemplo?bannerExemplo():'')
     + `<button class="btn btn-largo" onclick="formCarro()">Adicionar carro</button>`
-    + (dados.carros.length ? dados.carros.map(c=>{
-        const saldo = caderneta(c).saldo;
-        return `<article class="carro">
-          <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
-          <div class="modelo">${esc(c.modelo)}</div>
-          <div class="motorista">${esc(c.motorista||'Sem motorista')}${c.telefone?' · '+esc(c.telefone):''}</div>
-          <div class="rodape">
-            <span class="num">${moeda(c.valor)}</span><span class="motorista">por semana</span>
-            <span class="cresce"></span>
-            ${saldo > 0 ? `<span class="selo s-atr">Devendo ${moeda(saldo)}</span>`
-              : saldo < 0 ? `<span class="selo s-pago">Adiantado ${moeda(-saldo)}</span>` : ''}
-            ${c.doc==='Pendente'?`<span class="selo s-atr">Documentação pendente</span>`:''}
-            <button class="btn-vazio" onclick="verCarro('${c.id}')">Ver</button>
-          </div>
-        </article>`;
-      }).join('')
-      : `<div class="vazio"><p>Nenhum carro cadastrado ainda.</p></div>`);
+    + (ativos.length ? ativos.map(cardAtivo).join('')
+        : `<div class="vazio"><p>Nenhum carro na frota.</p></div>`)
+    + (vendidos.length
+        ? `<button class="btn-vazio btn-largo" style="margin-top:6px" onclick="alternarVendidos()">
+             Vendidos (${vendidos.length}) ${vendidosAbertos?'▲':'▼'}</button>`
+          + (vendidosAbertos ? vendidos.map(cardVendido).join('') : '')
+        : '');
 }
 
 function telaManutencao(){
@@ -873,11 +913,11 @@ function telaManutencao(){
 }
 
 function telaBalanco(){
-  const tot = {compra:0,receb:0,gasto:0};
-  const cards = dados.carros.map(c=>{
+  const tot = {compra:0, compraAtiva:0, receb:0, gasto:0, vendas:0};
+
+  const cardAtivo = c => {
     const r = recebidoTotal(c.id), g = gastoTotal(c.id), lucro = r-g;
     const compra = Number(c.compra||0);
-    tot.compra += compra; tot.receb += r; tot.gasto += g;
     const pct = compra ? Math.min(Math.max(lucro/compra,0),1)*100 : 0;
     const falta = compra - lucro;
     const semanas = (falta > 0 && c.valor) ? Math.ceil(falta/c.valor) : 0;
@@ -897,19 +937,54 @@ function telaBalanco(){
         </div>
       </div>
     </article>`;
-  }).join('');
+  };
+  const cardVendido = c => {
+    const r = recebidoTotal(c.id), g = gastoTotal(c.id), compra = Number(c.compra||0), venda = Number(c.vendaValor||0);
+    const resultado = r + venda - g - compra;
+    return `<article class="carro">
+      <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
+      <div class="modelo">${esc(c.modelo)}</div>
+      <div class="motorista">Vendido em ${dataBR(c.vendaData)}${venda?' por '+moeda(venda):''}</div>
+      <div class="rodape" style="display:block">
+        <div style="display:flex;gap:14px;flex-wrap:wrap">
+          <span><span class="motorista">Aluguel</span> <b class="num v-pago">${moeda(r)}</b></span>
+          <span><span class="motorista">Gastos</span> <b class="num v-atr">${moeda(g)}</b></span>
+          <span><span class="motorista">Compra</span> <b class="num">${compra?moeda(compra):'—'}</b></span>
+        </div>
+        <div class="motorista" style="margin-top:8px">Resultado final:
+          <b class="num ${resultado>=0?'v-pago':'v-atr'}">${resultado>=0?'+':''}${moeda(resultado)}</b></div>
+      </div>
+    </article>`;
+  };
 
-  const lucro = tot.receb - tot.gasto;
+  let resVendidos = 0;
+  dados.carros.forEach(c => {
+    const compra = Number(c.compra||0), r = recebidoTotal(c.id), g = gastoTotal(c.id);
+    if(!ehVendido(c)) tot.compraAtiva += compra;
+    else resVendidos += r + Number(c.vendaValor||0) - g - compra;
+    tot.receb += r;
+    tot.gasto += g;
+    tot.vendas += Number(c.vendaValor||0);
+  });
+  const ativos = carrosAtivos(), vendidos = carrosVendidos();
+  const operacional = tot.receb - tot.gasto;
+
   $('conteudo').innerHTML = `<h2>Balanço da frota</h2>`
     + `<div class="resumo" style="margin:0 0 6px">
         <div><span>Recebido de aluguel</span><strong class="v-pago">${moeda(tot.receb)}</strong></div>
         <div><span>Gasto com a frota</span><strong class="v-atr">${moeda(tot.gasto)}</strong></div>
        </div>
-       <div class="resumo" style="margin:0 0 14px">
-        <div><span>Lucro até agora</span><strong>${moeda(lucro)}</strong></div>
-        <div><span>Investido nos carros</span><strong>${moeda(tot.compra)}</strong></div>
+       <div class="resumo" style="margin:0 0 ${vendidos.length?'6px':'14px'}">
+        <div><span>Aluguel menos gastos</span><strong class="${operacional>=0?'v-pago':'v-atr'}">${operacional>=0?'+':''}${moeda(operacional)}</strong></div>
+        <div><span>Investido na frota atual</span><strong>${moeda(tot.compraAtiva)}</strong></div>
        </div>`
-    + (dados.carros.length?cards:`<div class="vazio"><p>Cadastre os carros com o valor de compra pra acompanhar quando cada um se paga.</p></div>`);
+    + (vendidos.length ? `<div class="resumo" style="margin:0 0 14px">
+        <div><span>Vendas recebidas</span><strong class="v-pago">${moeda(tot.vendas)}</strong></div>
+        <div><span>Resultado dos vendidos</span><strong class="${resVendidos>=0?'v-pago':'v-atr'}">${resVendidos>=0?'+':''}${moeda(resVendidos)}</strong></div>
+       </div>` : '')
+    + (ativos.length ? ativos.map(cardAtivo).join('')
+        : (vendidos.length ? '' : `<div class="vazio"><p>Cadastre os carros com o valor de compra pra acompanhar quando cada um se paga.</p></div>`))
+    + (vendidos.length ? `<h3 class="sec">Vendidos</h3>` + vendidos.map(cardVendido).join('') : '');
 }
 
 /* ---------------- painéis ---------------- */
@@ -921,13 +996,18 @@ function verCarro(cid){
   const c = carroDe(cid);
   const pags = dados.pagamentos.filter(p=>p.carro===cid).sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
   const gs = dados.gastos.filter(g=>g.carro===cid).sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
+  const vendido = ehVendido(c);
   const cad = caderneta(c);
   const recentes = cad.semanas.slice(-8).reverse();
-  const cadResumo = cad.saldo > 0 ? `<strong class="v-atr">Devendo ${moeda(cad.saldo)}</strong>`
-    : cad.saldo < 0 ? `<strong class="v-pago">Adiantado ${moeda(-cad.saldo)}</strong>`
-    : `<strong class="v-pago">Em dia</strong>`;
+  const rotSit = vendido ? { atr:'Ficou devendo', ok:'Ficou quitado', ad:'Ficou adiantado' }
+                         : { atr:'Devendo', ok:'Em dia', ad:'Adiantado' };
+  const cadResumo = cad.saldo > 0 ? `<strong class="v-atr">${rotSit.atr} ${moeda(cad.saldo)}</strong>`
+    : cad.saldo < 0 ? `<strong class="v-pago">${rotSit.ad} ${moeda(-cad.saldo)}</strong>`
+    : `<strong class="v-pago">${rotSit.ok}</strong>`;
   abrir(`<h3>${esc(c.placa)}</h3>
     <p class="sub">${esc(c.modelo)} · ${esc(c.motorista||'sem motorista')}${c.telefone?' · '+esc(c.telefone):''}</p>
+    ${vendido ? `<div class="aviso" style="background:var(--pago-f);margin:0 0 12px">
+      Vendido em ${dataBR(c.vendaData)}${Number(c.vendaValor)?' por '+moeda(c.vendaValor):''}</div>` : ''}
     <div class="resumo" style="margin:12px 0">
       <div><span>Recebeu</span><strong class="v-pago">${moeda(recebidoTotal(cid))}</strong></div>
       <div><span>Gastou</span><strong class="v-atr">${moeda(gastoTotal(cid))}</strong></div>
@@ -944,6 +1024,7 @@ function verCarro(cid){
           <small>${quitado ? 'Pago ' + moeda(x.pago) : x.pago > 0 ? 'Pagou ' + moeda(x.pago) + ' — falta ' + moeda(x.falta) : 'Não pagou'}</small></div>
         <div class="dir">${quitado
           ? '<b class="num v-pago">✓</b>'
+          : vendido ? `<b class="num v-atr">${moeda(x.falta)}</b>`
           : `<button class="btn" onclick="formPagamento('${cid}','${x.semana}')">Receber</button>`}</div>
       </div>`;
     }).join('') : `<p class="motorista" style="margin:0 0 8px">Ainda não há semanas fechadas pra cobrar.</p>`}
@@ -959,9 +1040,53 @@ function verCarro(cid){
       <div class="dir"><b class="num">${moeda(g.valor)}</b></div></div>`).join(''):''}
     <div class="acoes">
       <button class="btn-vazio" onclick="formCarro('${cid}')">Editar carro</button>
-      <button class="btn" onclick="formGasto(null,'${cid}')">Lançar gasto</button>
+      ${vendido
+        ? `<button class="btn" onclick="reativarCarro('${cid}')">Reativar carro</button>`
+        : `<button class="btn" onclick="formGasto(null,'${cid}')">Lançar gasto</button>`}
     </div>
+    ${vendido ? '' : `<div style="text-align:center;margin-top:16px">
+      <button class="apagar" onclick="formVenda('${cid}')">Marcar como vendido</button></div>`}
     <div style="text-align:center;margin-top:14px"><button class="btn-vazio" style="border:none" onclick="fechar()">Fechar</button></div>`);
+}
+
+function formVenda(cid){
+  const c = carroDe(cid);
+  abrir(`<h3>Vender ${esc(c.placa)}</h3>
+    <p class="sub">O carro sai do dia a dia, mas todo o histórico fica guardado.</p>
+    <div class="dupla">
+      <div><label for="vd">Data da venda</label><input id="vd" type="date" value="${hoje()}"></div>
+      <div><label for="vv">Valor da venda (R$)</label><input id="vv" type="number" step="100" placeholder="opcional"></div>
+    </div>
+    <div class="acoes">
+      <button class="btn-vazio" onclick="verCarro('${cid}')">Cancelar</button>
+      <button class="btn" onclick="salvarVenda('${cid}')">Confirmar venda</button>
+    </div>`);
+}
+async function salvarVenda(cid){
+  const carro = dados.carros.find(c=>c.id===cid);
+  if(!carro) return;
+  const data = $('vd').value || hoje();
+  const anterior = { status: carro.status, vendaData: carro.vendaData, vendaValor: carro.vendaValor };
+  carro.status = 'vendido';
+  carro.vendaData = data;
+  carro.vendaValor = Number($('vv').value) || 0;
+  await salvar(); fechar(); render();
+  avisoDesfazer(`${carro.placa} marcado como vendido`, async () => {
+    Object.assign(carro, anterior);
+    await salvar(); render(); aviso('Desfeito');
+  });
+}
+async function reativarCarro(cid){
+  const carro = dados.carros.find(c=>c.id===cid);
+  if(!carro) return;
+  const anterior = { status: carro.status, vendaData: carro.vendaData, vendaValor: carro.vendaValor };
+  carro.status = 'ativo';
+  delete carro.vendaData; delete carro.vendaValor;
+  await salvar(); fechar(); render();
+  avisoDesfazer(`${carro.placa} de volta na frota`, async () => {
+    Object.assign(carro, anterior);
+    await salvar(); render(); aviso('Desfeito');
+  });
 }
 
 function formPagamento(cid, semArg){
@@ -1048,8 +1173,10 @@ function formCarro(cid){
       <button class="btn-vazio" onclick="fechar()">Cancelar</button>
       <button class="btn" onclick="salvarCarro(${cid?`'${cid}'`:'null'})">Salvar carro</button>
     </div>
-    ${cid?`<div style="text-align:center;margin-top:16px">
-      <button class="apagar" onclick="apagarCarro('${cid}')">Remover este carro da frota</button></div>`:''}`);
+    ${cid && !temHistorico(cid) ? `<div style="text-align:center;margin-top:16px">
+      <button class="apagar" onclick="apagarCarro('${cid}')">Excluir carro</button></div>` : ''}
+    ${cid && temHistorico(cid) && !ehVendido(c) ? `<div style="text-align:center;margin-top:16px">
+      <button class="apagar" onclick="formVenda('${cid}')">Marcar como vendido</button></div>` : ''}`);
 }
 async function salvarCarro(cid){
   const placa = $('cp').value.trim().toUpperCase(), modelo = $('cm').value.trim(), valor = Number($('cv').value);
@@ -1061,18 +1188,21 @@ async function salvarCarro(cid){
              docVenc:$('cx').value,km:Number($('ck').value)||0,obs:$('co').value.trim(),
              desde:$('cy').value};
   if(cid) Object.assign(dados.carros.find(c=>c.id===cid), d);
-  else dados.carros.push({id:novoId(),...d});
+  else dados.carros.push({id:novoId(),status:'ativo',...d});
   await salvar(); fechar(); render(); aviso(cid?'Carro atualizado':'Carro cadastrado');
 }
 
 function formGasto(gid, cidPadrao){
-  if(!dados.carros.length) return aviso('Cadastre um carro primeiro.');
+  const listaCarros = carrosAtivos();
+  if(!listaCarros.length) return aviso('Cadastre um carro primeiro.');
   const g = gid ? dados.gastos.find(x=>x.id===gid)
-                : {carro:cidPadrao||dados.carros[0].id,data:hoje(),categoria:'Manutenção',descricao:'',
+                : {carro:cidPadrao||listaCarros[0].id,data:hoje(),categoria:'Manutenção',descricao:'',
                    oficina:'',km:'',valor:'',status:'Concluída',proximo:'',obs:''};
+  // se editando um gasto de carro vendido, mantém a opção dele na lista
+  const opcoes = gid && !listaCarros.some(c=>c.id===g.carro) ? [...listaCarros, carroDe(g.carro)] : listaCarros;
   abrir(`<h3>${gid?'Editar gasto':'Novo gasto ou serviço'}</h3>
     <label for="gc">Carro</label>
-    <select id="gc">${dados.carros.map(c=>`<option value="${c.id}" ${c.id===g.carro?'selected':''}>${esc(c.placa)} — ${esc(c.modelo)}</option>`).join('')}</select>
+    <select id="gc">${opcoes.map(c=>`<option value="${c.id}" ${c.id===g.carro?'selected':''}>${esc(c.placa)} — ${esc(c.modelo)}</option>`).join('')}</select>
     <div class="dupla">
       <div><label for="gk">Categoria</label>
         <select id="gk">${CATEGORIAS.map(o=>`<option ${o===g.categoria?'selected':''}>${o}</option>`).join('')}</select></div>
@@ -1134,11 +1264,10 @@ async function executarPendente(){
 }
 
 function apagarCarro(cid){
-  confirmar('O carro sai da frota junto com os pagamentos e os gastos lançados nele.','Remover carro', async ()=>{
+  if(temHistorico(cid)) return aviso('Esse carro tem lançamentos. Marque como vendido pra guardar o histórico.');
+  confirmar('Esse carro não tem nenhum pagamento nem gasto. Excluir de vez?','Excluir carro', async ()=>{
     dados.carros = dados.carros.filter(c=>c.id!==cid);
-    dados.pagamentos = dados.pagamentos.filter(p=>p.carro!==cid);
-    dados.gastos = dados.gastos.filter(g=>g.carro!==cid);
-    await salvar(); fechar(); render(); aviso('Carro removido');
+    await salvar(); fechar(); render(); aviso('Carro excluído');
   });
 }
 function apagarPagamento(pid){
