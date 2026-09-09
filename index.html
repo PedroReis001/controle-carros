@@ -145,8 +145,10 @@
       stroke-linecap:round;stroke-linejoin:round}
   nav button.ativo{color:var(--tinta);background:rgba(16,36,58,.08)}
   .toast{position:fixed;bottom:114px;left:18px;right:18px;background:var(--tinta);color:#fff;padding:14px 16px;
-         border-radius:10px;font-weight:600;z-index:30;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
-  .toast.aberto{opacity:1}
+         border-radius:10px;font-weight:600;z-index:30;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s;
+         display:flex;align-items:center;justify-content:center;gap:16px}
+  .toast.aberto{opacity:1;pointer-events:auto}
+  .toast-undo{color:#fff;font-weight:700;text-decoration:underline;flex:0 0 auto;padding:6px 8px;font-size:16px}
   .topo-acoes{display:flex;justify-content:center;gap:8px;margin-top:10px}
   .btn-sync{font-size:13px;font-weight:600;color:var(--media);
          border:1.5px solid var(--linha);background:var(--alto);border-radius:20px;padding:4px 16px}
@@ -771,6 +773,7 @@ function telaSemana(sem){
 
   const cardCarro = (c, sem) => {
     const s = situacao(c,sem);
+    const falta = Math.max(Number(c.valor) - s.pago, 0);
     return `<article class="carro">
       <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
       <div class="modelo">${esc(c.modelo)}</div>
@@ -778,7 +781,8 @@ function telaSemana(sem){
       <div class="rodape">
         <span class="selo s-${s.tipo}">${s.texto}</span><span class="cresce"></span>
         ${s.tipo==='pago' ? `<span class="num v-pago">${moeda(s.pago)}</span>`
-          : `<button class="btn" onclick="formPagamento('${c.id}')">Registrar pagamento</button>`}
+          : `<button class="btn-vazio" onclick="formPagamento('${c.id}')">Outro valor</button>
+             <button class="btn" onclick="pagarTudo('${c.id}')">Pagou ${moeda(falta)}</button>`}
       </div>
     </article>`;
   };
@@ -969,7 +973,7 @@ function formPagamento(cid, semArg){
     <input id="pv" type="number" inputmode="decimal" step="0.01" value="${falta}">
     <div class="dupla">
       <div><label for="pf">Como pagou</label>
-        <select id="pf"><option>Pix</option><option>Dinheiro</option><option>Transferência</option><option>Cartão</option></select></div>
+        <select id="pf">${['Pix','Dinheiro','Transferência','Cartão'].map(o=>`<option ${o===formaHabitual(cid)?'selected':''}>${o}</option>`).join('')}</select></div>
       <div><label for="pd">Dia</label><input id="pd" type="date" value="${hoje()}"></div>
     </div>
     <div class="acoes">
@@ -981,8 +985,32 @@ function formPagamento(cid, semArg){
 async function salvarPagamento(cid,sem){
   const valor = Number($('pv').value);
   if(!valor||valor<=0) return aviso('Digite um valor maior que zero.');
-  dados.pagamentos.push({id:novoId(),carro:cid,semana:sem,valor,data:$('pd').value,forma:$('pf').value});
-  await salvar(); fechar(); render(); aviso('Pagamento registrado');
+  const id = novoId();
+  dados.pagamentos.push({id,carro:cid,semana:sem,valor,data:$('pd').value,forma:$('pf').value});
+  await salvar(); fechar(); render();
+  avisoDesfazer('Pagamento registrado', () => desfazerPagamento(id));
+}
+
+/* forma de pagamento mais usada recentemente por esse carro (pra pré-selecionar) */
+function formaHabitual(cid){
+  const p = dados.pagamentos.filter(x=>x.carro===cid).sort((a,b)=>b.data.localeCompare(a.data))[0];
+  return (p && p.forma) || 'Pix';
+}
+
+/* Um toque: lança o que falta da semana atual, com a data de hoje. */
+async function pagarTudo(cid){
+  const c = carroDe(cid), sem = iso(semanaAtiva());
+  const falta = Math.max(Number(c.valor) - pagoNaSemana(cid, sem), 0);
+  if(falta <= 0) return;
+  const id = novoId();
+  dados.pagamentos.push({ id, carro:cid, semana:sem, valor:falta, data:hoje(), forma:formaHabitual(cid) });
+  await salvar(); render();
+  avisoDesfazer(`Pago ${moeda(falta)} · ${c.motorista || c.placa}`, () => desfazerPagamento(id));
+}
+
+async function desfazerPagamento(id){
+  dados.pagamentos = dados.pagamentos.filter(p => p.id !== id);
+  await salvar(); render(); aviso('Desfeito');
 }
 
 function formCarro(cid){
@@ -1071,11 +1099,22 @@ async function salvarGasto(gid){
   const cid = $('gc').value, km = Number($('gm').value)||0;
   const d = {carro:cid,data:$('gd').value,categoria:$('gk').value,descricao:$('ge').value.trim(),
              oficina:$('gf').value.trim(),km,valor,status:$('gs').value,proximo:$('gp').value};
-  if(gid) Object.assign(dados.gastos.find(x=>x.id===gid), d);
-  else dados.gastos.push({id:novoId(),...d});
   const carro = dados.carros.find(c=>c.id===cid);
+  const kmAntes = carro ? carro.km : undefined;
+  let novoIdGasto = null;
+  if(gid) Object.assign(dados.gastos.find(x=>x.id===gid), d);
+  else { novoIdGasto = novoId(); dados.gastos.push({id:novoIdGasto,...d}); }
   if(carro && km > Number(carro.km||0)) carro.km = km;
-  await salvar(); fechar(); render(); aviso('Gasto lançado');
+  await salvar(); fechar(); render();
+  if(novoIdGasto){
+    avisoDesfazer('Gasto lançado', async ()=>{
+      dados.gastos = dados.gastos.filter(g=>g.id!==novoIdGasto);
+      if(carro) carro.km = kmAntes;
+      await salvar(); render(); aviso('Desfeito');
+    });
+  }else{
+    aviso('Gasto atualizado');
+  }
 }
 
 let acaoPendente = null;
@@ -1119,10 +1158,21 @@ function limparExemplo(){
   });
 }
 
-let t;
-function aviso(msg){
-  $('toast').textContent = msg; $('toast').classList.add('aberto');
-  clearTimeout(t); t = setTimeout(()=>$('toast').classList.remove('aberto'), 2600);
+let t, toastDesfazer = null;
+function mostrarToast(msg, undoFn){
+  toastDesfazer = undoFn || null;
+  $('toast').innerHTML = esc(msg)
+    + (undoFn ? ` <button class="toast-undo" onclick="executarDesfazer()">Desfazer</button>` : '');
+  $('toast').classList.add('aberto');
+  clearTimeout(t);
+  t = setTimeout(()=>{ $('toast').classList.remove('aberto'); toastDesfazer = null; }, undoFn ? 6000 : 2600);
+}
+function aviso(msg){ mostrarToast(msg, null); }
+function avisoDesfazer(msg, undoFn){ mostrarToast(msg, undoFn); }
+async function executarDesfazer(){
+  const f = toastDesfazer; toastDesfazer = null;
+  $('toast').classList.remove('aberto'); clearTimeout(t);
+  if(f) await f();
 }
 
 $('semAnt').onclick = ()=>{ if(!appLiberado) return; offsetSemana--; render(); };
