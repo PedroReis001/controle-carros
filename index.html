@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controle Carros</title>
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#10243A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Controle Carros">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --papel:#EFF1F3; --alto:#FFFFFF; --tinta:#10243A; --media:#4A5B6C; --linha:#C9D1D8;
+    --pago:#1B6E45; --pago-f:#E1F0E7;
+    --pend:#9A6207; --pend-f:#F8EDD6;
+    --atr:#95271D;  --atr-f:#F7E2DF;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{background:var(--papel);color:var(--tinta);font-family:'Barlow',system-ui,sans-serif;
+       font-size:17px;line-height:1.45;padding-bottom:106px}
+  button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  :focus-visible{outline:3px solid var(--tinta);outline-offset:2px}
+  .oculto{display:none}
+
+  header{padding:20px 18px 6px}
+  .semana-nav{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .semana-label{font-size:15px;font-weight:600;color:var(--media)}
+  .semana-titulo{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:30px;line-height:1.05}
+  .seta{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--linha);
+        display:grid;place-items:center;font-size:20px;flex:0 0 auto;background:var(--alto)}
+  .seta[disabled]{opacity:.3;cursor:default}
+
+  .resumo{display:flex;gap:10px;margin:16px 18px 0}
+  .resumo div{flex:1;background:var(--alto);border:1.5px solid var(--linha);border-radius:10px;padding:12px 14px}
+  .resumo span{display:block;font-size:14px;color:var(--media);font-weight:500}
+  .resumo strong{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:29px;display:block;line-height:1.1}
+  .v-pago{color:var(--pago)} .v-falta{color:var(--pend)} .v-atr{color:var(--atr)}
+
+  main{padding:14px 18px 0}
+  h2{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:26px;margin:2px 0 12px}
+  h3.sec{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;margin:24px 0 10px;
+         padding-bottom:6px;border-bottom:1.5px solid var(--linha)}
+
+  .carro{background:var(--alto);border:1.5px solid var(--linha);border-radius:12px;padding:14px;
+         margin-bottom:12px;display:grid;grid-template-columns:auto 1fr;gap:0 14px}
+  .placa{width:96px;border:2px solid var(--tinta);border-radius:6px;overflow:hidden;background:#fff;
+         grid-row:span 2;align-self:start}
+  .placa i{display:block;background:var(--tinta);color:#fff;font-size:10px;letter-spacing:1px;
+           text-align:center;font-style:normal;font-weight:600;padding:1px 0}
+  .placa b{display:block;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:26px;
+           text-align:center;letter-spacing:1px;padding:2px 0 3px}
+  .modelo{font-weight:600;font-size:19px;line-height:1.2}
+  .motorista{color:var(--media);font-size:16px}
+  .rodape{grid-column:1/-1;margin-top:12px;padding-top:12px;border-top:1px solid var(--linha);
+          display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .cresce{flex:1}
+  .num{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px}
+
+  .selo{font-size:14px;font-weight:600;padding:4px 10px;border-radius:20px}
+  .s-pago{background:var(--pago-f);color:var(--pago)}
+  .s-pend{background:var(--pend-f);color:var(--pend)}
+  .s-atr{background:var(--atr-f);color:var(--atr)}
+
+  .btn{background:var(--tinta);color:#fff;border-radius:9px;padding:11px 16px;font-weight:600}
+  .btn-vazio{border:1.5px solid var(--linha);border-radius:9px;padding:10px 14px;font-weight:600;background:var(--alto)}
+  .btn-largo{width:100%;padding:15px;font-size:18px;margin-bottom:12px}
+
+  label{display:block;font-size:15px;font-weight:600;color:var(--media);margin:12px 0 4px}
+  input,select,textarea{width:100%;padding:12px;font-family:inherit;font-size:17px;border:1.5px solid var(--linha);
+        border-radius:9px;background:var(--alto);color:var(--tinta)}
+  textarea{min-height:64px;resize:vertical}
+  .dupla{display:flex;gap:10px}.dupla>div{flex:1}
+
+  .vazio{background:var(--alto);border:1.5px dashed var(--linha);border-radius:12px;padding:26px 20px;
+         text-align:center;color:var(--media)}
+  .vazio p{margin:0 0 16px}
+  .aviso{background:var(--pend-f);border-radius:10px;padding:12px 14px;font-size:15px;margin-bottom:14px;
+         display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .aviso button{font-weight:600;text-decoration:underline;flex:0 0 auto}
+
+  .alerta{background:var(--alto);border:1.5px solid var(--linha);border-left:5px solid var(--pend);
+          border-radius:10px;padding:11px 14px;margin-bottom:8px;display:flex;gap:10px;align-items:center}
+  .alerta.venceu{border-left-color:var(--atr)}
+  .alerta div{flex:1}
+  .alerta small{display:block;color:var(--media);font-size:14px}
+
+  .item{background:var(--alto);border:1.5px solid var(--linha);border-radius:10px;padding:12px 14px;
+        margin-bottom:8px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+  .item small{display:block;color:var(--media);font-size:14px}
+  .item .dir{text-align:right;flex:0 0 auto}
+  .apagar{color:var(--atr);font-weight:600;font-size:15px}
+  .barra{height:8px;border-radius:5px;background:var(--linha);overflow:hidden;margin:8px 0 4px}
+  .barra i{display:block;height:100%;background:var(--pago)}
+
+  .fundo{position:fixed;inset:0;background:rgba(16,36,58,.45);display:none;z-index:20}
+  .fundo.aberto{display:block}
+  .painel{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--papel);
+          border-radius:16px 16px 0 0;padding:18px 18px 28px;transform:translateY(101%);
+          transition:transform .22s ease;max-height:92vh;overflow:auto}
+  .painel.aberto{transform:translateY(0)}
+  @media (prefers-reduced-motion:reduce){.painel{transition:none}}
+  .painel h3{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:26px;margin:0 0 2px}
+  .painel .sub{color:var(--media);margin:0 0 8px}
+  .acoes{display:flex;gap:10px;margin-top:20px}
+  .acoes .btn,.acoes .btn-vazio{flex:1;text-align:center}
+
+  nav{position:fixed;bottom:0;left:0;right:0;background:var(--alto);border-top:1.5px solid var(--linha);
+      display:flex;gap:4px;z-index:10;padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
+  nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 2px 6px;
+      border-radius:12px;font-size:12.5px;font-weight:600;color:var(--media);line-height:1.1}
+  nav button svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.7;
+      stroke-linecap:round;stroke-linejoin:round}
+  nav button.ativo{color:var(--tinta);background:rgba(16,36,58,.08)}
+  .toast{position:fixed;bottom:114px;left:18px;right:18px;background:var(--tinta);color:#fff;padding:14px 16px;
+         border-radius:10px;font-weight:600;z-index:30;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
+  .toast.aberto{opacity:1}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="semana-nav">
+    <button class="seta" id="semAnt" aria-label="Semana anterior">‹</button>
+    <div style="text-align:center">
+      <div class="semana-label" id="semRotulo">Semana atual</div>
+      <div class="semana-titulo" id="semTitulo">—</div>
+    </div>
+    <button class="seta" id="semProx" aria-label="Semana seguinte">›</button>
+  </div>
+</header>
+<div class="resumo" id="resumo"></div>
+<main id="conteudo" aria-live="polite"></main>
+
+<div class="fundo" id="fundo"></div>
+<div class="painel" id="painel" role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast"></div>
+
+<nav>
+  <button data-aba="semana" class="ativo">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+    Semana
+  </button>
+  <button data-aba="carros">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15.5V12l1.8-4.4A2 2 0 0 1 7.6 6.3h8.8a2 2 0 0 1 1.8 1.3L20 12v3.5"/><path d="M4.5 12h15"/><circle cx="7.5" cy="16.6" r="1.8"/><circle cx="16.5" cy="16.6" r="1.8"/><path d="M9.3 16.6h5.4"/></svg>
+    Carros
+  </button>
+  <button data-aba="manutencao">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.6 3.4a5 5 0 0 0-6 6.6l-5.5 5.5a2.2 2.2 0 0 0 3.1 3.1l5.5-5.5a5 5 0 0 0 6.6-6l-2.9 2.9-2.6-.6-.6-2.6z"/></svg>
+    Manutenção
+  </button>
+  <button data-aba="balanco">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16"/><path d="M7.5 20v-5.5M12 20V7.5M16.5 20v-8.5"/></svg>
+    Balanço
+  </button>
+</nav>
+
+<script>
+  // ====== CONFIGURAÇÃO DO SUPABASE ======
+  // Cole aqui embaixo a URL e a chave "anon public" do seu projeto
+  // (Project Settings → API).
+  const SUPABASE_URL = "https://gslnpiegtvkjvngdpqhf.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_OkA5pfbvxJSShR2mMA9sNA_xJKmvJE9";
+  // ====== NÃO PRECISA MEXER DAQUI PRA BAIXO ======
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Substitui o window.storage que o app usava dentro da Claude
+  // por um que lê e grava numa tabela do Supabase — mesma "forma", outro lugar.
+  window.storage = {
+    async get(key){
+      const { data, error } = await sb.from('dados').select('value').eq('key', key).maybeSingle();
+      if(error) throw error;
+      if(!data) throw new Error('sem dados ainda');
+      return {key, value: data.value, shared:true};
+    },
+    async set(key, value){
+      const { error } = await sb.from('dados').upsert({ key, value, atualizado_em: new Date().toISOString() });
+      if(error) throw error;
+      return {key, value, shared:true};
+    }
+  };
+</script>
+<script>
+const CHAVE = 'frota:dados:v2';
+const CATEGORIAS = ['Manutenção','Pneus','Revisão','IPVA / Licenciamento','Seguro','Multa','Outro'];
+const RECORRENTES = ['IPVA / Licenciamento','Seguro','Revisão','Pneus'];
+const $ = id => document.getElementById(id);
+const moeda = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:0,maximumFractionDigits:2});
+const esc = s => String(s??'').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+
+let dados = {carros:[], pagamentos:[], gastos:[], exemplo:false};
+let aba = 'semana', offsetSemana = 0;
+
+/* ---------------- datas (semana começa na segunda) ---------------- */
+function segundaDe(d){
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - ((x.getDay()+6)%7));
+  return x;
+}
+const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const hoje = () => iso(new Date());
+function semanaAtiva(){ const s = segundaDe(new Date()); s.setDate(s.getDate()+offsetSemana*7); return s; }
+function rotuloSemana(seg){
+  const dom = new Date(seg); dom.setDate(dom.getDate()+6);
+  const dd = d => String(d.getDate()).padStart(2,'0');
+  const mm = d => d.toLocaleDateString('pt-BR',{month:'short'}).replace('.','');
+  return seg.getMonth()===dom.getMonth() ? `${dd(seg)} a ${dd(dom)} de ${mm(dom)}`
+                                         : `${dd(seg)} de ${mm(seg)} a ${dd(dom)} de ${mm(dom)}`;
+}
+const dataBR = s => s ? new Date(s+'T12:00').toLocaleDateString('pt-BR') : '';
+const diasAte = s => Math.round((new Date(s+'T12:00') - new Date(hoje()+'T12:00'))/86400000);
+
+/* ---------------- armazenamento ---------------- */
+async function carregar(){
+  try{
+    dados = JSON.parse((await window.storage.get(CHAVE, true)).value);
+  }catch(e){
+    dados = semente(); salvar();
+  }
+}
+async function salvar(){
+  try{ await window.storage.set(CHAVE, JSON.stringify(dados), true); }
+  catch(e){ aviso('Não deu pra salvar agora. Tente de novo.'); }
+}
+const novoId = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+function semente(){
+  const s = iso(segundaDe(new Date()));
+  const a = segundaDe(new Date()); a.setDate(a.getDate()-7); const sa = iso(a);
+  const daqui = n => { const d = new Date(); d.setDate(d.getDate()+n); return iso(d); };
+  return {
+    exemplo:true,
+    carros:[
+      {id:'c1',placa:'RJK4E21',modelo:'Chevrolet Onix 2019',motorista:'Marcelo Dias',telefone:'(21) 98888-1010',
+       valor:520,compra:52000,dia:'Sexta-feira',doc:'Em dia',docVenc:daqui(21),km:118000,obs:''},
+      {id:'c2',placa:'LSQ7B08',modelo:'Hyundai HB20 2018',motorista:'Jefferson Luiz',telefone:'(21) 97777-2020',
+       valor:480,compra:46000,dia:'Sábado',doc:'Pendente',docVenc:daqui(-9),km:143500,obs:'Ar-condicionado fraco'},
+      {id:'c3',placa:'KPT2H45',modelo:'VW Voyage 2017',motorista:'Rita Almeida',telefone:'(21) 96666-3030',
+       valor:450,compra:39000,dia:'Sexta-feira',doc:'Em dia',docVenc:daqui(74),km:167200,obs:''},
+      {id:'c4',placa:'RIO9C63',modelo:'Renault Logan 2020',motorista:'Cleber Santos',telefone:'(21) 95555-4040',
+       valor:550,compra:58000,dia:'Segunda-feira',doc:'Em dia',docVenc:daqui(48),km:91000,obs:''}
+    ],
+    pagamentos:[
+      {id:'p1',carro:'c1',semana:s, valor:520,data:s, forma:'Pix'},
+      {id:'p2',carro:'c3',semana:s, valor:200,data:s, forma:'Dinheiro'},
+      {id:'p3',carro:'c1',semana:sa,valor:520,data:sa,forma:'Pix'},
+      {id:'p4',carro:'c2',semana:sa,valor:480,data:sa,forma:'Pix'},
+      {id:'p5',carro:'c3',semana:sa,valor:450,data:sa,forma:'Dinheiro'},
+      {id:'p6',carro:'c4',semana:sa,valor:550,data:sa,forma:'Transferência'}
+    ],
+    gastos:[
+      {id:'g1',carro:'c1',data:daqui(-86),categoria:'Pneus',descricao:'Quatro pneus novos',
+       oficina:'Oficina do Marcos — Méier',km:112000,valor:1200,status:'Concluída',proximo:daqui(279),obs:''},
+      {id:'g2',carro:'c2',data:daqui(-12),categoria:'Manutenção',descricao:'Troca de embreagem',
+       oficina:'Auto Center Campo Grande',km:142800,valor:1850,status:'Concluída',proximo:'',obs:'Motorista rodou 3 dias sem o carro'},
+      {id:'g3',carro:'c3',data:daqui(-40),categoria:'Revisão',descricao:'Revisão de 160 mil km',
+       oficina:'Auto Center Campo Grande',km:160000,valor:640,status:'Concluída',proximo:daqui(5),obs:'Próxima aos 170 mil'},
+      {id:'g4',carro:'c4',data:daqui(-160),categoria:'Seguro',descricao:'Seguro anual',
+       oficina:'Corretora Bandeira',km:82000,valor:2400,status:'Concluída',proximo:daqui(205),obs:''},
+      {id:'g5',carro:'c2',data:daqui(3),categoria:'Manutenção',descricao:'Alinhamento e balanceamento',
+       oficina:'Oficina do Marcos — Méier',km:0,valor:180,status:'Agendada',proximo:'',obs:''}
+    ]
+  };
+}
+
+/* ---------------- cálculos ---------------- */
+const carroDe = id => dados.carros.find(c=>c.id===id) || {placa:'—',modelo:'Carro removido'};
+const pagoNaSemana = (cid,sem) => dados.pagamentos.filter(p=>p.carro===cid&&p.semana===sem).reduce((t,p)=>t+Number(p.valor),0);
+const recebidoTotal = cid => dados.pagamentos.filter(p=>p.carro===cid).reduce((t,p)=>t+Number(p.valor),0);
+const gastoTotal = cid => dados.gastos.filter(g=>g.carro===cid&&g.status!=='Agendada').reduce((t,g)=>t+Number(g.valor),0);
+
+function situacao(carro, sem){
+  const pago = pagoNaSemana(carro.id, sem);
+  if(pago >= carro.valor) return {tipo:'pago', texto:'Pago', pago};
+  const passada = sem < iso(segundaDe(new Date()));
+  if(pago > 0) return {tipo:passada?'atr':'pend', texto:`Falta ${moeda(carro.valor-pago)}`, pago};
+  return {tipo:passada?'atr':'pend', texto:passada?'Não pagou':'A receber', pago};
+}
+
+/* vencimentos: documentação de cada carro + gastos com data de próximo vencimento */
+function vencimentos(){
+  const lista = [];
+  dados.carros.forEach(c=>{
+    if(c.docVenc) lista.push({carro:c.id, quando:c.docVenc, titulo:'Documentação do veículo',
+      detalhe:c.doc==='Pendente'?'Marcada como pendente':'Licenciamento / IPVA'});
+  });
+  dados.gastos.forEach(g=>{
+    if(g.proximo) lista.push({carro:g.carro, quando:g.proximo, titulo:g.categoria, detalhe:g.descricao});
+  });
+  return lista.filter(v=>diasAte(v.quando) <= 30).sort((a,b)=>a.quando.localeCompare(b.quando));
+}
+
+/* ---------------- render ---------------- */
+function render(){
+  const sem = iso(semanaAtiva());
+  $('semTitulo').textContent = rotuloSemana(semanaAtiva());
+  $('semRotulo').textContent = offsetSemana===0?'Semana atual':offsetSemana===-1?'Semana passada'
+    : offsetSemana<0?`${-offsetSemana} semanas atrás`:'Semana que vem';
+  $('semProx').disabled = offsetSemana>=0;
+  const topo = aba==='semana';
+  document.querySelector('header').classList.toggle('oculto', !topo);
+  $('resumo').classList.toggle('oculto', !topo);
+
+  if(aba==='semana') telaSemana(sem);
+  if(aba==='carros') telaCarros();
+  if(aba==='manutencao') telaManutencao();
+  if(aba==='balanco') telaBalanco();
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('ativo', b.dataset.aba===aba));
+  window.scrollTo(0,0);
+}
+
+const bannerExemplo = () => `<div class="aviso"><span>Estes carros são só exemplo.</span>
+  <button onclick="limparExemplo()">Apagar e começar do zero</button></div>`;
+
+function telaSemana(sem){
+  const total = dados.carros.reduce((t,c)=>t+Number(c.valor),0);
+  const receb = dados.carros.reduce((t,c)=>t+Math.min(pagoNaSemana(c.id,sem),c.valor),0);
+  $('resumo').innerHTML = `
+    <div><span>Recebido</span><strong class="v-pago">${moeda(receb)}</strong></div>
+    <div><span>Falta receber</span><strong class="v-falta">${moeda(Math.max(total-receb,0))}</strong></div>`;
+
+  if(!dados.carros.length){
+    $('conteudo').innerHTML = `<div class="vazio"><p>Nenhum carro cadastrado ainda.</p>
+      <button class="btn" onclick="formCarro()">Cadastrar primeiro carro</button></div>`;
+    return;
+  }
+  const venc = vencimentos();
+  const ordem = {atr:0,pend:1,pago:2};
+  const lista = [...dados.carros].sort((a,b)=>ordem[situacao(a,sem).tipo]-ordem[situacao(b,sem).tipo]);
+
+  $('conteudo').innerHTML = (dados.exemplo?bannerExemplo():'')
+    + (venc.length ? `<h3 class="sec">Precisa de atenção</h3>` + venc.map(v=>{
+        const d = diasAte(v.quando), c = carroDe(v.carro);
+        return `<div class="alerta ${d<0?'venceu':''}">
+          <div><strong>${esc(c.placa)} · ${esc(v.titulo)}</strong>
+          <small>${esc(v.detalhe)} — ${d<0?`venceu há ${-d} dia${-d>1?'s':''}`:d===0?'vence hoje':`vence em ${d} dia${d>1?'s':''}`}</small></div>
+        </div>`;
+      }).join('') + `<h3 class="sec">Aluguel da semana</h3>` : '')
+    + lista.map(c=>{
+        const s = situacao(c,sem);
+        return `<article class="carro">
+          <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
+          <div class="modelo">${esc(c.modelo)}</div>
+          <div class="motorista">${esc(c.motorista||'Sem motorista')} · paga ${esc(c.dia||'—')}</div>
+          <div class="rodape">
+            <span class="selo s-${s.tipo}">${s.texto}</span><span class="cresce"></span>
+            ${s.tipo==='pago' ? `<span class="num v-pago">${moeda(s.pago)}</span>`
+              : `<button class="btn" onclick="formPagamento('${c.id}')">Registrar pagamento</button>`}
+          </div>
+        </article>`;
+      }).join('');
+}
+
+function telaCarros(){
+  $('conteudo').innerHTML = `<h2>Carros da frota</h2>`
+    + (dados.exemplo?bannerExemplo():'')
+    + `<button class="btn btn-largo" onclick="formCarro()">Adicionar carro</button>`
+    + (dados.carros.length ? dados.carros.map(c=>`
+        <article class="carro">
+          <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
+          <div class="modelo">${esc(c.modelo)}</div>
+          <div class="motorista">${esc(c.motorista||'Sem motorista')}${c.telefone?' · '+esc(c.telefone):''}</div>
+          <div class="rodape">
+            <span class="num">${moeda(c.valor)}</span><span class="motorista">por semana</span>
+            <span class="cresce"></span>
+            ${c.doc==='Pendente'?`<span class="selo s-atr">Documentação pendente</span>`:''}
+            <button class="btn-vazio" onclick="verCarro('${c.id}')">Ver</button>
+          </div>
+        </article>`).join('')
+      : `<div class="vazio"><p>Nenhum carro cadastrado ainda.</p></div>`);
+}
+
+function telaManutencao(){
+  const agendados = dados.gastos.filter(g=>g.status!=='Concluída').sort((a,b)=>a.data.localeCompare(b.data));
+  const feitos = dados.gastos.filter(g=>g.status==='Concluída').sort((a,b)=>b.data.localeCompare(a.data));
+  const mesAtual = hoje().slice(0,7);
+  const noMes = dados.gastos.filter(g=>g.status==='Concluída' && g.data.startsWith(mesAtual))
+                            .reduce((t,g)=>t+Number(g.valor),0);
+  const venc = vencimentos();
+
+  const linha = g => `<div class="item">
+      <div><strong>${esc(carroDe(g.carro).placa)} · ${esc(g.categoria)}</strong>
+        <small>${esc(g.descricao||'')}${g.oficina?' — '+esc(g.oficina):''}</small>
+        <small>${dataBR(g.data)}${g.km?' · '+Number(g.km).toLocaleString('pt-BR')+' km':''}${g.proximo?' · próxima em '+dataBR(g.proximo):''}</small>
+      </div>
+      <div class="dir"><b class="num">${moeda(g.valor)}</b>
+        <small><button class="apagar" onclick="apagarGasto('${g.id}')">Apagar</button></small></div>
+    </div>`;
+
+  $('conteudo').innerHTML = `<h2>Manutenção e gastos</h2>`
+    + `<div class="resumo" style="margin:0 0 14px">
+         <div><span>Gasto neste mês</span><strong class="v-atr">${moeda(noMes)}</strong></div>
+         <div><span>Serviços em aberto</span><strong>${agendados.length}</strong></div>
+       </div>`
+    + `<button class="btn btn-largo" onclick="formGasto()">Lançar gasto ou serviço</button>`
+    + (venc.length ? `<h3 class="sec">A vencer nos próximos 30 dias</h3>` + venc.map(v=>{
+        const d = diasAte(v.quando);
+        return `<div class="alerta ${d<0?'venceu':''}"><div>
+          <strong>${esc(carroDe(v.carro).placa)} · ${esc(v.titulo)}</strong>
+          <small>${esc(v.detalhe)} — ${dataBR(v.quando)}</small></div></div>`;
+      }).join('') : '')
+    + (agendados.length ? `<h3 class="sec">Agendado ou pendente</h3>`+agendados.map(linha).join('') : '')
+    + (feitos.length ? `<h3 class="sec">Já feito</h3>`+feitos.map(linha).join('')
+      : (agendados.length?'':`<div class="vazio"><p>Nenhum gasto lançado ainda. Cada serviço que você lançar entra no balanço do carro.</p></div>`));
+}
+
+function telaBalanco(){
+  const tot = {compra:0,receb:0,gasto:0};
+  const cards = dados.carros.map(c=>{
+    const r = recebidoTotal(c.id), g = gastoTotal(c.id), lucro = r-g;
+    const compra = Number(c.compra||0);
+    tot.compra += compra; tot.receb += r; tot.gasto += g;
+    const pct = compra ? Math.min(Math.max(lucro/compra,0),1)*100 : 0;
+    const falta = compra - lucro;
+    const semanas = (falta > 0 && c.valor) ? Math.ceil(falta/c.valor) : 0;
+    return `<article class="carro">
+      <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
+      <div class="modelo">${esc(c.modelo)}</div>
+      <div class="motorista">Comprado por ${compra?moeda(compra):'valor não informado'}</div>
+      <div class="rodape" style="display:block">
+        ${compra?`<div class="barra"><i style="width:${pct}%"></i></div>
+          <div class="motorista">${falta<=0
+            ? `Já se pagou — lucro de ${moeda(lucro)} acima da compra`
+            : `Recuperou ${moeda(Math.max(lucro,0))} dos ${moeda(compra)}${semanas?` · faltam cerca de ${semanas} semanas`:''}`}</div>`:''}
+        <div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap">
+          <span><span class="motorista">Recebeu</span> <b class="num v-pago">${moeda(r)}</b></span>
+          <span><span class="motorista">Gastou</span> <b class="num v-atr">${moeda(g)}</b></span>
+          <span><span class="motorista">Lucro</span> <b class="num">${moeda(lucro)}</b></span>
+        </div>
+      </div>
+    </article>`;
+  }).join('');
+
+  const lucro = tot.receb - tot.gasto;
+  $('conteudo').innerHTML = `<h2>Balanço da frota</h2>`
+    + `<div class="resumo" style="margin:0 0 6px">
+        <div><span>Recebido de aluguel</span><strong class="v-pago">${moeda(tot.receb)}</strong></div>
+        <div><span>Gasto com a frota</span><strong class="v-atr">${moeda(tot.gasto)}</strong></div>
+       </div>
+       <div class="resumo" style="margin:0 0 14px">
+        <div><span>Lucro até agora</span><strong>${moeda(lucro)}</strong></div>
+        <div><span>Investido nos carros</span><strong>${moeda(tot.compra)}</strong></div>
+       </div>`
+    + (dados.carros.length?cards:`<div class="vazio"><p>Cadastre os carros com o valor de compra pra acompanhar quando cada um se paga.</p></div>`);
+}
+
+/* ---------------- painéis ---------------- */
+function abrir(html){ $('painel').innerHTML = html; $('painel').classList.add('aberto'); $('fundo').classList.add('aberto'); }
+function fechar(){ $('painel').classList.remove('aberto'); $('fundo').classList.remove('aberto'); }
+$('fundo').onclick = fechar;
+
+function verCarro(cid){
+  const c = carroDe(cid);
+  const pags = dados.pagamentos.filter(p=>p.carro===cid).sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
+  const gs = dados.gastos.filter(g=>g.carro===cid).sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
+  abrir(`<h3>${esc(c.placa)}</h3>
+    <p class="sub">${esc(c.modelo)} · ${esc(c.motorista||'sem motorista')}${c.telefone?' · '+esc(c.telefone):''}</p>
+    <div class="resumo" style="margin:12px 0">
+      <div><span>Recebeu</span><strong class="v-pago">${moeda(recebidoTotal(cid))}</strong></div>
+      <div><span>Gastou</span><strong class="v-atr">${moeda(gastoTotal(cid))}</strong></div>
+    </div>
+    <div class="motorista">Aluguel de ${moeda(c.valor)} por semana, vence ${esc(c.dia||'—')}.
+      Documentação: ${esc(c.doc||'—')}${c.docVenc?' até '+dataBR(c.docVenc):''}.
+      ${c.km?'Último km anotado: '+Number(c.km).toLocaleString('pt-BR')+'.':''}</div>
+    ${c.obs?`<div class="aviso" style="margin-top:12px">${esc(c.obs)}</div>`:''}
+    ${pags.length?`<h3 class="sec">Últimos pagamentos</h3>`+pags.map(p=>`<div class="item">
+      <div><strong>${moeda(p.valor)}</strong><small>${dataBR(p.data)} · ${esc(p.forma)}</small></div>
+      <div class="dir"><button class="apagar" onclick="apagarPagamento('${p.id}')">Apagar</button></div></div>`).join(''):''}
+    ${gs.length?`<h3 class="sec">Últimos gastos</h3>`+gs.map(g=>`<div class="item">
+      <div><strong>${esc(g.categoria)}</strong><small>${esc(g.descricao||'')} · ${dataBR(g.data)}</small></div>
+      <div class="dir"><b class="num">${moeda(g.valor)}</b></div></div>`).join(''):''}
+    <div class="acoes">
+      <button class="btn-vazio" onclick="formCarro('${cid}')">Editar carro</button>
+      <button class="btn" onclick="formGasto(null,'${cid}')">Lançar gasto</button>
+    </div>
+    <div style="text-align:center;margin-top:14px"><button class="btn-vazio" style="border:none" onclick="fechar()">Fechar</button></div>`);
+}
+
+function formPagamento(cid){
+  const c = carroDe(cid), sem = iso(semanaAtiva());
+  const falta = Math.max(c.valor - pagoNaSemana(cid,sem), 0);
+  abrir(`<h3>${esc(c.placa)} · ${esc(c.motorista||'sem motorista')}</h3>
+    <p class="sub">Semana de ${rotuloSemana(semanaAtiva())}</p>
+    <label for="pv">Quanto ele pagou</label>
+    <input id="pv" type="number" inputmode="decimal" step="0.01" value="${falta}">
+    <div class="dupla">
+      <div><label for="pf">Como pagou</label>
+        <select id="pf"><option>Pix</option><option>Dinheiro</option><option>Transferência</option><option>Cartão</option></select></div>
+      <div><label for="pd">Dia</label><input id="pd" type="date" value="${hoje()}"></div>
+    </div>
+    <div class="acoes">
+      <button class="btn-vazio" onclick="fechar()">Cancelar</button>
+      <button class="btn" onclick="salvarPagamento('${cid}','${sem}')">Registrar pagamento</button>
+    </div>`);
+  setTimeout(()=>$('pv').select(),120);
+}
+async function salvarPagamento(cid,sem){
+  const valor = Number($('pv').value);
+  if(!valor||valor<=0) return aviso('Digite um valor maior que zero.');
+  dados.pagamentos.push({id:novoId(),carro:cid,semana:sem,valor,data:$('pd').value,forma:$('pf').value});
+  await salvar(); fechar(); render(); aviso('Pagamento registrado');
+}
+
+function formCarro(cid){
+  const c = cid?carroDe(cid):{placa:'',modelo:'',motorista:'',telefone:'',valor:'',compra:'',dia:'Sexta-feira',doc:'Em dia',docVenc:'',km:'',obs:''};
+  const dias = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
+  abrir(`<h3>${cid?'Editar carro':'Novo carro'}</h3>
+    <div class="dupla">
+      <div><label for="cp">Placa</label><input id="cp" value="${esc(c.placa)}" placeholder="ABC1D23" maxlength="8" style="text-transform:uppercase"></div>
+      <div><label for="ck">Km atual</label><input id="ck" type="number" value="${c.km||''}" placeholder="120000"></div>
+    </div>
+    <label for="cm">Modelo e ano</label><input id="cm" value="${esc(c.modelo)}" placeholder="Chevrolet Onix 2019">
+    <div class="dupla">
+      <div><label for="cd">Motorista</label><input id="cd" value="${esc(c.motorista)}" placeholder="Nome"></div>
+      <div><label for="ct">Telefone</label><input id="ct" value="${esc(c.telefone)}" placeholder="(21) 90000-0000"></div>
+    </div>
+    <div class="dupla">
+      <div><label for="cv">Aluguel semanal (R$)</label><input id="cv" type="number" step="10" value="${c.valor}" placeholder="500"></div>
+      <div><label for="cc">Valor de compra (R$)</label><input id="cc" type="number" step="100" value="${c.compra||''}" placeholder="50000"></div>
+    </div>
+    <label for="cw">Dia em que o aluguel vence</label>
+    <select id="cw">${dias.map(d=>`<option ${d===c.dia?'selected':''}>${d}</option>`).join('')}</select>
+    <div class="dupla">
+      <div><label for="cs">Documentação</label>
+        <select id="cs">${['Em dia','Pendente'].map(o=>`<option ${o===c.doc?'selected':''}>${o}</option>`).join('')}</select></div>
+      <div><label for="cx">Vence em</label><input id="cx" type="date" value="${c.docVenc||''}"></div>
+    </div>
+    <label for="co">Observações</label><textarea id="co" placeholder="Pneus novos, ar fraco, contrato...">${esc(c.obs)}</textarea>
+    <div class="acoes">
+      <button class="btn-vazio" onclick="fechar()">Cancelar</button>
+      <button class="btn" onclick="salvarCarro(${cid?`'${cid}'`:'null'})">Salvar carro</button>
+    </div>
+    ${cid?`<div style="text-align:center;margin-top:16px">
+      <button class="apagar" onclick="apagarCarro('${cid}')">Remover este carro da frota</button></div>`:''}`);
+}
+async function salvarCarro(cid){
+  const placa = $('cp').value.trim().toUpperCase(), modelo = $('cm').value.trim(), valor = Number($('cv').value);
+  if(!placa) return aviso('Preencha a placa.');
+  if(!modelo) return aviso('Preencha o modelo do carro.');
+  if(!valor||valor<=0) return aviso('Preencha o aluguel semanal.');
+  const d = {placa,modelo,valor,motorista:$('cd').value.trim(),telefone:$('ct').value.trim(),
+             compra:Number($('cc').value)||0,dia:$('cw').value,doc:$('cs').value,
+             docVenc:$('cx').value,km:Number($('ck').value)||0,obs:$('co').value.trim()};
+  if(cid) Object.assign(dados.carros.find(c=>c.id===cid), d);
+  else dados.carros.push({id:novoId(),...d});
+  await salvar(); fechar(); render(); aviso(cid?'Carro atualizado':'Carro cadastrado');
+}
+
+function formGasto(gid, cidPadrao){
+  if(!dados.carros.length) return aviso('Cadastre um carro primeiro.');
+  const g = gid ? dados.gastos.find(x=>x.id===gid)
+                : {carro:cidPadrao||dados.carros[0].id,data:hoje(),categoria:'Manutenção',descricao:'',
+                   oficina:'',km:'',valor:'',status:'Concluída',proximo:'',obs:''};
+  abrir(`<h3>${gid?'Editar gasto':'Novo gasto ou serviço'}</h3>
+    <label for="gc">Carro</label>
+    <select id="gc">${dados.carros.map(c=>`<option value="${c.id}" ${c.id===g.carro?'selected':''}>${esc(c.placa)} — ${esc(c.modelo)}</option>`).join('')}</select>
+    <div class="dupla">
+      <div><label for="gk">Categoria</label>
+        <select id="gk">${CATEGORIAS.map(o=>`<option ${o===g.categoria?'selected':''}>${o}</option>`).join('')}</select></div>
+      <div><label for="gd">Data</label><input id="gd" type="date" value="${g.data}"></div>
+    </div>
+    <label for="ge">O que foi feito</label><input id="ge" value="${esc(g.descricao)}" placeholder="Troca de pneus, revisão, IPVA 2026...">
+    <div class="dupla">
+      <div><label for="gv">Valor (R$)</label><input id="gv" type="number" step="10" value="${g.valor}" placeholder="1200"></div>
+      <div><label for="gm">Km na data</label><input id="gm" type="number" value="${g.km||''}" placeholder="145000"></div>
+    </div>
+    <label for="gf">Oficina ou fornecedor</label><input id="gf" value="${esc(g.oficina)}" placeholder="Oficina do Marcos — Méier">
+    <div class="dupla">
+      <div><label for="gs">Situação</label>
+        <select id="gs">${['Concluída','Agendada','Pendente'].map(o=>`<option ${o===g.status?'selected':''}>${o}</option>`).join('')}</select></div>
+      <div><label for="gp">Próxima vez em</label><input id="gp" type="date" value="${g.proximo||''}"></div>
+    </div>
+    <div class="acoes">
+      <button class="btn-vazio" onclick="fechar()">Cancelar</button>
+      <button class="btn" onclick="salvarGasto(${gid?`'${gid}'`:'null'})">Salvar gasto</button>
+    </div>`);
+}
+async function salvarGasto(gid){
+  const valor = Number($('gv').value);
+  if(!$('ge').value.trim()) return aviso('Escreva o que foi feito.');
+  if(!valor||valor<=0) return aviso('Preencha o valor do gasto.');
+  const cid = $('gc').value, km = Number($('gm').value)||0;
+  const d = {carro:cid,data:$('gd').value,categoria:$('gk').value,descricao:$('ge').value.trim(),
+             oficina:$('gf').value.trim(),km,valor,status:$('gs').value,proximo:$('gp').value};
+  if(gid) Object.assign(dados.gastos.find(x=>x.id===gid), d);
+  else dados.gastos.push({id:novoId(),...d});
+  const carro = dados.carros.find(c=>c.id===cid);
+  if(carro && km > Number(carro.km||0)) carro.km = km;
+  await salvar(); fechar(); render(); aviso('Gasto lançado');
+}
+
+let acaoPendente = null;
+function confirmar(texto, rotulo, acao){
+  acaoPendente = acao;
+  abrir(`<h3>Tem certeza?</h3><p class="sub">${texto}</p>
+    <div class="acoes">
+      <button class="btn-vazio" onclick="fechar()">Não, voltar</button>
+      <button class="btn" style="background:var(--atr)" onclick="executarPendente()">${rotulo}</button>
+    </div>`);
+}
+async function executarPendente(){
+  const f = acaoPendente; acaoPendente = null;
+  if(f) await f();
+}
+
+function apagarCarro(cid){
+  confirmar('O carro sai da frota junto com os pagamentos e os gastos lançados nele.','Remover carro', async ()=>{
+    dados.carros = dados.carros.filter(c=>c.id!==cid);
+    dados.pagamentos = dados.pagamentos.filter(p=>p.carro!==cid);
+    dados.gastos = dados.gastos.filter(g=>g.carro!==cid);
+    await salvar(); fechar(); render(); aviso('Carro removido');
+  });
+}
+function apagarPagamento(pid){
+  confirmar('Este pagamento sai do histórico e a semana volta a aparecer como pendente.','Apagar pagamento', async ()=>{
+    dados.pagamentos = dados.pagamentos.filter(p=>p.id!==pid);
+    await salvar(); fechar(); render(); aviso('Pagamento apagado');
+  });
+}
+function apagarGasto(gid){
+  confirmar('Este gasto sai da manutenção e do balanço do carro.','Apagar gasto', async ()=>{
+    dados.gastos = dados.gastos.filter(g=>g.id!==gid);
+    await salvar(); fechar(); render(); aviso('Gasto apagado');
+  });
+}
+function limparExemplo(){
+  confirmar('Os quatro carros de exemplo e os lançamentos deles serão apagados. Depois é só cadastrar os carros de verdade.','Apagar exemplos', async ()=>{
+    dados = {carros:[],pagamentos:[],gastos:[],exemplo:false};
+    await salvar(); aba='carros'; fechar(); render(); aviso('Pronto, agora é só cadastrar os carros');
+  });
+}
+
+let t;
+function aviso(msg){
+  $('toast').textContent = msg; $('toast').classList.add('aberto');
+  clearTimeout(t); t = setTimeout(()=>$('toast').classList.remove('aberto'), 2600);
+}
+
+$('semAnt').onclick = ()=>{ offsetSemana--; render(); };
+$('semProx').onclick = ()=>{ if(offsetSemana<0){ offsetSemana++; render(); } };
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{ aba=b.dataset.aba; render(); });
+
+(async ()=>{
+  $('conteudo').innerHTML = `<div class="vazio"><p>Carregando…</p></div>`;
+  await carregar(); render();
+})();
+</script>
+</body>
+</html>

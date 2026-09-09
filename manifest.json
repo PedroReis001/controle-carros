@@ -1,0 +1,12 @@
+{
+  "name": "Controle Carros",
+  "short_name": "Controle Carros",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#EFF1F3",
+  "theme_color": "#10243A",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
