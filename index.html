@@ -136,7 +136,8 @@
   .toast{position:fixed;bottom:114px;left:18px;right:18px;background:var(--tinta);color:#fff;padding:14px 16px;
          border-radius:10px;font-weight:600;z-index:30;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
   .toast.aberto{opacity:1}
-  .btn-sync{display:block;margin:10px auto 0;font-size:13px;font-weight:600;color:var(--media);
+  .topo-acoes{display:flex;justify-content:center;gap:8px;margin-top:10px}
+  .btn-sync{font-size:13px;font-weight:600;color:var(--media);
          border:1.5px solid var(--linha);background:var(--alto);border-radius:20px;padding:4px 16px}
   .btn-sync.rodando{opacity:.45}
 </style>
@@ -149,8 +150,15 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5a3 3 0 0 1 6 0"/><path d="M6 8v-.5a6 6 0 0 1 12 0V8"/><rect x="4" y="8" width="16" height="12" rx="3"/><circle cx="12" cy="13.5" r="1.6"/><path d="M12 15.1V17"/></svg>
     </div>
     <h1>Controle Carros</h1>
-    <p id="bloqueioTexto">Use o Face ID pra continuar.</p>
-    <button class="btn btn-largo" id="bloqueioBtn">Desbloquear com Face ID</button>
+    <p id="bloqueioTexto">Entre com seu e-mail e senha.</p>
+    <form id="loginForm" style="text-align:left">
+      <label for="loginEmail">E-mail</label>
+      <input id="loginEmail" type="email" inputmode="email" autocomplete="username"
+             autocapitalize="none" autocorrect="off" required>
+      <label for="loginSenha">Senha</label>
+      <input id="loginSenha" type="password" autocomplete="current-password" required>
+      <button class="btn btn-largo" type="submit" id="loginBtn" style="margin-top:18px">Entrar</button>
+    </form>
     <p class="bloqueio-nota" id="bloqueioNota"></p>
   </div>
 </div>
@@ -165,7 +173,10 @@
     </div>
     <button class="seta" id="semProx" aria-label="Semana seguinte">›</button>
   </div>
-  <button class="btn-sync" id="btnSync">Atualizar</button>
+  <div class="topo-acoes">
+    <button class="btn-sync" id="btnSync">Atualizar</button>
+    <button class="btn-sync" id="btnSair">Sair</button>
+  </div>
 </header>
 <div class="resumo" id="resumo"></div>
 <main id="conteudo" aria-live="polite"></main>
@@ -202,7 +213,9 @@
   const SUPABASE_ANON_KEY = "sb_publishable_OkA5pfbvxJSShR2mMA9sNA_xJKmvJE9";
   // ====== NÃO PRECISA MEXER DAQUI PRA BAIXO ======
   const { createClient } = supabase;
-  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true }
+  });
 
   // Substitui o window.storage que o app usava dentro da Claude
   // por um que lê e grava numa tabela do Supabase — mesma "forma", outro lugar.
@@ -228,84 +241,66 @@
 <script>
 const CHAVE = 'frota:dados:v2';
 
-/* ================= BLOQUEIO COM FACE ID ================= *
- * Isto é uma trava de tela local, não segurança de verdade:
- * guarda um "passkey" no PRÓPRIO aparelho e navegador. Cada
- * pessoa (e cada aparelho) configura o Face ID dela uma vez.
- * Não protege os dados no Supabase — só quem abre o app aqui. */
-const CHAVE_CREDENCIAL = 'frota:faceid:credencial';
-const SESSAO_DESBLOQUEADA = 'frota:faceid:sessao';
+/* ================= LOGIN (Supabase Auth) ================= *
+ * Agora é login de verdade: e-mail e senha verificados pelo Supabase.
+ * A sessão fica guardada no aparelho (localStorage) e é renovada
+ * sozinha, então só precisa entrar de novo depois de "Sair" ou de
+ * ficar muito tempo sem abrir. As contas são criadas no painel do
+ * Supabase (Authentication -> Users). Não há cadastro aberto aqui
+ * de propósito: assim ninguém de fora entra nos dados. */
 
-function bufferParaBase64(buf){
-  return btoa(String.fromCharCode(...new Uint8Array(buf)));
-}
-function base64ParaBuffer(b64){
-  return Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
-}
-
-async function configurarFaceId(){
-  const desafio = crypto.getRandomValues(new Uint8Array(32));
-  const idUsuario = crypto.getRandomValues(new Uint8Array(16));
-  const cred = await navigator.credentials.create({
-    publicKey: {
-      challenge: desafio,
-      rp: { name: 'Controle Carros' },
-      user: { id: idUsuario, name: 'controle-carros', displayName: 'Controle Carros' },
-      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
-      timeout: 60000
-    }
-  });
-  localStorage.setItem(CHAVE_CREDENCIAL, bufferParaBase64(cred.rawId));
+function mostrarTelaLogin(){
+  appLiberado = false;
+  $('bloqueio').classList.remove('oculto');
+  $('appConteudo').classList.add('oculto');
+  $('loginSenha').value = '';
+  setTimeout(() => $('loginEmail').focus(), 60);
 }
 
-async function desbloquearComFaceId(){
-  const idSalvo = localStorage.getItem(CHAVE_CREDENCIAL);
-  const desafio = crypto.getRandomValues(new Uint8Array(32));
-  const opcoes = {
-    challenge: desafio,
-    userVerification: 'required',
-    timeout: 60000
-  };
-  if(idSalvo) opcoes.allowCredentials = [{ type: 'public-key', id: base64ParaBuffer(idSalvo) }];
-  await navigator.credentials.get({ publicKey: opcoes });
-}
-
-function liberarApp(){
+function entrarNoApp(){
   $('bloqueio').classList.add('oculto');
   $('appConteudo').classList.remove('oculto');
-  sessionStorage.setItem(SESSAO_DESBLOQUEADA, '1');
   iniciarApp();
 }
 
-async function iniciarBloqueio(){
-  if(!window.PublicKeyCredential){
-    $('bloqueioTexto').textContent = 'Este navegador não suporta Face ID/Touch ID. Abra pelo Safari num iPhone ou Mac atualizado.';
-    $('bloqueioBtn').classList.add('oculto');
+async function fazerLogin(e){
+  e.preventDefault();
+  $('bloqueioNota').textContent = '';
+  $('loginBtn').disabled = true;
+  $('loginBtn').textContent = 'Entrando…';
+  const email = $('loginEmail').value.trim();
+  const senha = $('loginSenha').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+  $('loginBtn').disabled = false;
+  $('loginBtn').textContent = 'Entrar';
+  if(error){
+    $('bloqueioNota').textContent = /Email not confirmed/i.test(error.message)
+      ? 'Esse e-mail ainda não foi confirmado.'
+      : 'E-mail ou senha incorretos.';
     return;
   }
-  if(sessionStorage.getItem(SESSAO_DESBLOQUEADA) === '1'){
-    liberarApp();
-    return;
-  }
-  const jaTemCredencial = !!localStorage.getItem(CHAVE_CREDENCIAL);
-  $('bloqueioBtn').textContent = jaTemCredencial ? 'Desbloquear com Face ID' : 'Configurar Face ID neste aparelho';
-  $('bloqueioTexto').textContent = jaTemCredencial
-    ? 'Use o Face ID pra continuar.'
-    : 'Primeira vez aqui — configure o Face ID deste aparelho pra usar o app.';
-
-  $('bloqueioBtn').onclick = async () => {
-    $('bloqueioNota').textContent = '';
-    try{
-      if(jaTemCredencial) await desbloquearComFaceId();
-      else await configurarFaceId();
-      liberarApp();
-    }catch(e){
-      $('bloqueioNota').textContent = 'Não foi possível confirmar. Toque para tentar de novo.';
-    }
-  };
+  entrarNoApp();
 }
-/* ================= FIM DO BLOQUEIO ================= */
+
+async function sair(){
+  if(timerSync){ clearInterval(timerSync); timerSync = null; }
+  fechar();
+  await sb.auth.signOut();
+  dados = {carros:[], pagamentos:[], gastos:[], exemplo:false};
+  baseRemoto = null;
+  mostrarTelaLogin();
+}
+
+async function iniciarSessao(){
+  const { data } = await sb.auth.getSession();
+  if(data.session) entrarNoApp();
+  else mostrarTelaLogin();
+  // Se o token expirar e não der pra renovar, o Supabase emite SIGNED_OUT.
+  sb.auth.onAuthStateChange((evento) => {
+    if(evento === 'SIGNED_OUT') mostrarTelaLogin();
+  });
+}
+/* ================= FIM DO LOGIN ================= */
 
 const CATEGORIAS = ['Manutenção','Pneus','Revisão','IPVA / Licenciamento','Seguro','Multa','Outro'];
 const RECORRENTES = ['IPVA / Licenciamento','Seguro','Revisão','Pneus'];
@@ -856,6 +851,12 @@ $('btnSync').onclick = async ()=>{
   $('btnSync').disabled = false;
 };
 
+$('btnSair').onclick = ()=>{
+  confirmar('Você vai precisar entrar de novo com e-mail e senha neste aparelho.', 'Sair', sair);
+};
+
+$('loginForm').addEventListener('submit', fazerLogin);
+
 // Atualiza sozinho: ao voltar pro app e a cada 60s enquanto estiver aberto.
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') recarregarSuave(); });
 
@@ -878,7 +879,7 @@ async function iniciarApp(){
   }
 }
 
-iniciarBloqueio();
+iniciarSessao();
 </script>
 </body>
 </html>

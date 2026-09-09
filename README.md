@@ -5,15 +5,15 @@ aluguel semanal por motorista, cadastro dos carros, manutenção/gastos e
 balanço de quando cada carro se paga.
 
 - **Frontend:** HTML/CSS/JS puro, tudo em [`index.html`](index.html).
-- **Banco de dados:** [Supabase](https://supabase.com) — tabela `dados`
-  (formato chave/valor; todo o estado do app fica em uma linha,
-  `key = 'frota:dados:v2'`).
+- **Login:** [Supabase Auth](https://supabase.com) — e-mail e senha.
+- **Banco de dados:** Supabase — tabela `dados` (formato chave/valor; todo o
+  estado do app fica em uma linha, `key = 'frota:dados:v2'`).
 - **Offline:** [`sw.js`](sw.js) guarda o "casco" do app para abrir sem internet
   mostrando o último estado carregado.
 
 ## Rodar localmente
 
-Precisa ser servido por HTTP (o service worker e o Face ID não funcionam em
+Precisa ser servido por HTTP (o service worker e o login não funcionam em
 `file://`):
 
 ```bash
@@ -23,14 +23,12 @@ python3 -m http.server 8000
 
 ## Configuração do Supabase
 
-As chaves ficam em `index.html` (procure por `SUPABASE_URL`). A chave usada é
-do tipo `publishable` — ela é feita para ser pública.
+As chaves ficam em `index.html` (procure por `SUPABASE_URL`). A chave é do
+tipo `publishable` — feita para ser pública. A proteção de verdade vem do
+**login + Row Level Security**. Ver [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md)
+para o passo a passo (criar contas e aplicar o SQL das políticas).
 
-### ⚠️ Segurança — pendente
-
-A proteção real dos dados depende de **Row Level Security (RLS)** na tabela
-`dados` do painel do Supabase. Para testar se hoje qualquer pessoa consegue
-ler os dados:
+### Testar se os dados estão protegidos
 
 ```bash
 curl -s -w '\n[HTTP %{http_code}]\n' \
@@ -38,12 +36,8 @@ curl -s -w '\n[HTTP %{http_code}]\n' \
   -H 'apikey: SUA_CHAVE_PUBLISHABLE'
 ```
 
-- Voltou `[]` ou erro `401/403` → RLS protegendo, ok.
-- Voltou os dados → **está exposto**; configure RLS (idealmente junto com
-  Supabase Auth, senão o app anônimo também deixa de funcionar).
-
-O bloqueio por Face ID é apenas uma trava de tela local — **não protege os
-dados no banco**.
+- Voltou `[]` ou erro `401/403` → protegido, ok.
+- Voltou os dados → **exposto**; falta aplicar o RLS de `SUPABASE_SETUP.md`.
 
 ## Como os dados são salvos
 
