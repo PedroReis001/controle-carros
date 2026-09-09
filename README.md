@@ -55,6 +55,15 @@ A aba Semana também mostra uma seção **Hoje** (motoristas cujo dia de
 pagamento é hoje e ainda não quitaram) e um botão **Voltar pra semana de
 hoje** quando você navega para outra semana.
 
+## Registrar pagamento
+
+Cada carro em aberto tem um botão grande **"Pagou R$ X"** que lança num
+toque o valor que falta da semana, com a data de hoje e a forma de
+pagamento mais usada por aquele motorista. **"Outro valor"** abre o painel
+completo (valor parcial, adiantamento, outra data/forma). Depois de
+qualquer lançamento aparece **"... · Desfazer"** por alguns segundos —
+um toque remove o lançamento.
+
 ## Como os dados são salvos
 
 Como tudo fica em uma linha só, dois aparelhos editando ao mesmo tempo
