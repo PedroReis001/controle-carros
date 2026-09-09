@@ -78,6 +78,25 @@ dia a dia (Semana, Hoje, alertas, lançar gasto) mas continua:
 Dá pra **Reativar** um carro marcado por engano. Só é possível **excluir de
 vez** um carro que não tenha nenhum lançamento (cadastro errado).
 
+## Balanço — payback e rendimento
+
+Cada carro mostra:
+
+- **Rendeu de aluguel / Gastou / Sobrou** (resultado operacional = aluguel −
+  gastos: manutenção, pneus, seguro, IPVA, multas...).
+- **Recuperou X% dos R$ Y** — quanto do preço de compra já voltou.
+- **Falta ~1 ano e 4 meses** — payback, no ritmo atual.
+- **Rendimento: +45% ao ano** — resultado mensal médio × 12 ÷ preço de
+  compra. Serve pra comparar modelos (Voyage 51% × Onix 45% × HB20 42%).
+  Carro com menos de 3 meses de frota mostra "ainda cedo pra calcular".
+
+No topo: **Rendimento da frota** (média ponderada pelo capital). Carro
+vendido mostra o **resultado final** fechado (aluguel + venda − compra −
+gastos) e o % sobre a compra.
+
+> O rendimento **não desconta a desvalorização** do carro — o retorno real
+> é um pouco menor. Isso está avisado na tela.
+
 ## Como os dados são salvos
 
 Como tudo fica em uma linha só, dois aparelhos editando ao mesmo tempo

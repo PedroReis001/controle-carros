@@ -607,65 +607,64 @@ function semente(){
   const semN = n => { const d = new Date(seg); d.setDate(d.getDate() + n*7); return iso(d); };
   const s = semN(0), sa = semN(-1);
   const daqui = n => { const d = new Date(); d.setDate(d.getDate()+n); return iso(d); };
+  let pid = 0;
+  // pagamentos semanais de `carro` (R$ `valor`/semana) de semN(ini) até semN(fim), inclusive.
+  // opts.pular = semanas sem pagamento; opts.valores = { semana: valor pago } sobrescreve.
+  const semanais = (carro, valor, forma, ini, fim, opts={}) => {
+    const out = [];
+    for(let n = ini; n <= fim; n++){
+      if((opts.pular||[]).includes(n)) continue;
+      const v = opts.valores && opts.valores[n] != null ? opts.valores[n] : valor;
+      out.push({ id:'p'+(++pid), carro, semana:semN(n), valor:v, data:semN(n), forma });
+    }
+    return out;
+  };
   return {
     exemplo:true,
     carros:[
       {id:'c1',placa:'RJK4E21',modelo:'Chevrolet Onix 2019',motorista:'Marcelo Dias',telefone:'(21) 98888-1010',
-       valor:520,compra:52000,dia:'Sexta-feira',doc:'Em dia',docVenc:daqui(21),km:118000,obs:'',desde:semN(-6)},
+       valor:520,compra:52000,dia:'Sexta-feira',doc:'Em dia',docVenc:daqui(21),km:118000,obs:'',desde:semN(-30)},
       {id:'c2',placa:'LSQ7B08',modelo:'Hyundai HB20 2018',motorista:'Jefferson Luiz',telefone:'(21) 97777-2020',
-       valor:480,compra:46000,dia:'Sábado',doc:'Pendente',docVenc:daqui(-9),km:143500,obs:'Ar-condicionado fraco',desde:semN(-6)},
+       valor:480,compra:46000,dia:'Sábado',doc:'Pendente',docVenc:daqui(-9),km:143500,obs:'Ar-condicionado fraco',desde:semN(-24)},
       {id:'c3',placa:'KPT2H45',modelo:'VW Voyage 2017',motorista:'Rita Almeida',telefone:'(21) 96666-3030',
-       valor:450,compra:39000,dia:'Sexta-feira',doc:'Em dia',docVenc:daqui(74),km:167200,obs:'',desde:semN(-6)},
+       valor:450,compra:39000,dia:'Sexta-feira',doc:'Em dia',docVenc:daqui(74),km:167200,obs:'',desde:semN(-34)},
       {id:'c4',placa:'RIO9C63',modelo:'Renault Logan 2020',motorista:'Cleber Santos',telefone:'(21) 95555-4040',
-       valor:550,compra:58000,dia:'Segunda-feira',doc:'Em dia',docVenc:daqui(48),km:91000,obs:'',desde:semN(-4)},
+       valor:550,compra:58000,dia:'Segunda-feira',doc:'Em dia',docVenc:daqui(48),km:91000,obs:'',desde:semN(-9)},
       {id:'c5',placa:'GHT8J92',modelo:'Fiat Siena 2015',motorista:'Antônio Ferreira',telefone:'(21) 94444-5050',
        valor:400,compra:31000,dia:'Sexta-feira',doc:'Em dia',docVenc:'',km:198000,obs:'Vendido — carro já rodado demais',
-       desde:semN(-20),status:'vendido',vendaData:daqui(-40),vendaValor:22000}
+       desde:semN(-46),status:'vendido',vendaData:daqui(-45),vendaValor:23000}
     ],
     pagamentos:[
-      // Marcelo (c1): sempre em dia
-      {id:'p11',carro:'c1',semana:semN(-6),valor:520,data:semN(-6),forma:'Pix'},
-      {id:'p12',carro:'c1',semana:semN(-5),valor:520,data:semN(-5),forma:'Pix'},
-      {id:'p13',carro:'c1',semana:semN(-4),valor:520,data:semN(-4),forma:'Pix'},
-      {id:'p14',carro:'c1',semana:semN(-3),valor:520,data:semN(-3),forma:'Pix'},
-      {id:'p15',carro:'c1',semana:semN(-2),valor:520,data:semN(-2),forma:'Pix'},
-      {id:'p16',carro:'c1',semana:sa,valor:520,data:sa,forma:'Pix'},
-      {id:'p17',carro:'c1',semana:s, valor:520,data:s, forma:'Pix'},
-      // Jefferson (c2): atrasado — faltou 2 semanas e pagou 1 pela metade
-      {id:'p21',carro:'c2',semana:semN(-6),valor:480,data:semN(-6),forma:'Pix'},
-      {id:'p22',carro:'c2',semana:semN(-5),valor:480,data:semN(-5),forma:'Pix'},
-      {id:'p23',carro:'c2',semana:semN(-4),valor:240,data:semN(-4),forma:'Dinheiro'},
-      {id:'p25',carro:'c2',semana:semN(-2),valor:480,data:semN(-2),forma:'Pix'},
-      {id:'p26',carro:'c2',semana:sa,valor:480,data:sa,forma:'Pix'},
-      // Rita (c3): pagou tudo, e uma vez adiantou
-      {id:'p31',carro:'c3',semana:semN(-6),valor:450,data:semN(-6),forma:'Dinheiro'},
-      {id:'p32',carro:'c3',semana:semN(-5),valor:450,data:semN(-5),forma:'Dinheiro'},
-      {id:'p33',carro:'c3',semana:semN(-4),valor:450,data:semN(-4),forma:'Dinheiro'},
-      {id:'p34',carro:'c3',semana:semN(-3),valor:600,data:semN(-3),forma:'Pix'},
-      {id:'p35',carro:'c3',semana:semN(-2),valor:450,data:semN(-2),forma:'Dinheiro'},
-      {id:'p36',carro:'c3',semana:sa,valor:450,data:sa,forma:'Dinheiro'},
-      {id:'p37',carro:'c3',semana:s, valor:200,data:s, forma:'Dinheiro'},
-      // Cleber (c4): começou faz 4 semanas, deixou a última passar
-      {id:'p41',carro:'c4',semana:semN(-4),valor:550,data:semN(-4),forma:'Transferência'},
-      {id:'p42',carro:'c4',semana:semN(-3),valor:550,data:semN(-3),forma:'Transferência'},
-      {id:'p43',carro:'c4',semana:semN(-2),valor:550,data:semN(-2),forma:'Transferência'},
-      // Antônio (c5): carro vendido faz ~6 semanas
-      ...[-19,-18,-17,-16,-15,-14,-13,-12,-11,-10,-9,-7].map((n,i)=>
-        ({id:'p5'+i,carro:'c5',semana:semN(n),valor:400,data:semN(n),forma:'Dinheiro'}))
+      // Marcelo (c1): sempre em dia, ~7 meses
+      ...semanais('c1',520,'Pix',-30,0),
+      // Jefferson (c2): geralmente paga, mas pulou 2 e pagou 1 pela metade — está devendo
+      ...semanais('c2',480,'Pix',-24,-1,{pular:[-3], valores:{[-4]:240}}),
+      // Rita (c3): em dia, adiantou uma vez, esta semana pagou parcial
+      ...semanais('c3',450,'Dinheiro',-34,0,{valores:{[-3]:600, [0]:200}}),
+      // Cleber (c4): carro novo (~2 meses), pagou até 2 semanas atrás
+      ...semanais('c4',550,'Transferência',-9,-2),
+      // Antônio (c5): carro vendido, rodou ~9 meses
+      ...semanais('c5',400,'Dinheiro',-46,-7,{pular:[-20,-19]})
     ],
     gastos:[
       {id:'g1',carro:'c1',data:daqui(-86),categoria:'Pneus',descricao:'Quatro pneus novos',
        oficina:'Oficina do Marcos — Méier',km:112000,valor:1200,status:'Concluída',proximo:daqui(279),obs:''},
+      {id:'g1b',carro:'c1',data:daqui(-170),categoria:'IPVA / Licenciamento',descricao:'IPVA 2026',
+       oficina:'',km:0,valor:1450,status:'Concluída',proximo:daqui(195),obs:''},
       {id:'g2',carro:'c2',data:daqui(-12),categoria:'Manutenção',descricao:'Troca de embreagem',
        oficina:'Auto Center Campo Grande',km:142800,valor:1850,status:'Concluída',proximo:'',obs:'Motorista rodou 3 dias sem o carro'},
       {id:'g3',carro:'c3',data:daqui(-40),categoria:'Revisão',descricao:'Revisão de 160 mil km',
        oficina:'Auto Center Campo Grande',km:160000,valor:640,status:'Concluída',proximo:daqui(5),obs:'Próxima aos 170 mil'},
-      {id:'g4',carro:'c4',data:daqui(-160),categoria:'Seguro',descricao:'Seguro anual',
-       oficina:'Corretora Bandeira',km:82000,valor:2400,status:'Concluída',proximo:daqui(205),obs:''},
+      {id:'g3b',carro:'c3',data:daqui(-150),categoria:'Seguro',descricao:'Seguro anual',
+       oficina:'Corretora Bandeira',km:0,valor:2100,status:'Concluída',proximo:daqui(215),obs:''},
+      {id:'g4',carro:'c4',data:daqui(-20),categoria:'Seguro',descricao:'Seguro anual',
+       oficina:'Corretora Bandeira',km:82000,valor:2400,status:'Concluída',proximo:daqui(345),obs:''},
       {id:'g5',carro:'c2',data:daqui(3),categoria:'Manutenção',descricao:'Alinhamento e balanceamento',
        oficina:'Oficina do Marcos — Méier',km:0,valor:180,status:'Agendada',proximo:'',obs:''},
       {id:'g6',carro:'c5',data:daqui(-120),categoria:'Manutenção',descricao:'Retífica do motor',
-       oficina:'Auto Center Campo Grande',km:190000,valor:3800,status:'Concluída',proximo:'',obs:''}
+       oficina:'Auto Center Campo Grande',km:190000,valor:3800,status:'Concluída',proximo:'',obs:''},
+      {id:'g6b',carro:'c5',data:daqui(-240),categoria:'Pneus',descricao:'Jogo de pneus',
+       oficina:'Oficina do Marcos — Méier',km:182000,valor:1100,status:'Concluída',proximo:'',obs:''}
     ]
   };
 }
@@ -720,6 +719,38 @@ function caderneta(carro){
   const esperado = valor * semanas.length;
   const pago = semanas.reduce((t, x) => t + x.pago, 0);
   return { semanas, esperado, pago, saldo: esperado - pago };
+}
+
+/* ---------------- economia do carro ---------------- *
+ * resultado operacional = aluguel recebido − gastos (manutenção, pneus,
+ * seguro, IPVA, multas...). Payback: quantos meses faltam pra esse
+ * resultado igualar o preço de compra. Rendimento anual: resultado
+ * mensal médio × 12 ÷ preço de compra. NÃO conta a desvalorização. */
+function economia(carro){
+  const receita = recebidoTotal(carro.id);
+  const despesas = gastoTotal(carro.id);
+  const resultadoOp = receita - despesas;
+  const compra = Number(carro.compra || 0);
+  const meses = Math.max((fimCobranca(carro) - inicioCobranca(carro)) / 86400000 / 30.44, 0.1);
+  const opMensal = resultadoOp / meses;
+  const pct = compra ? Math.min(Math.max(resultadoOp / compra, 0), 1) * 100 : 0;
+  const falta = compra - resultadoOp;
+  const paybackMeses = (falta > 0 && opMensal > 0) ? Math.ceil(falta / opMensal) : 0;
+  const rendAnual = compra ? Math.round((opMensal * 12) / compra * 100) : null;
+  const maduro = meses >= 3 && compra > 0;
+  return { receita, despesas, resultadoOp, compra, meses, opMensal, pct, falta, paybackMeses, rendAnual, maduro };
+}
+function rendimentoFrota(){
+  const mad = carrosAtivos().map(economia).filter(e => e.maduro);
+  const capital = mad.reduce((t,e)=>t+e.compra, 0);
+  const opAnual = mad.reduce((t,e)=>t+e.opMensal*12, 0);
+  return capital ? Math.round(opAnual / capital * 100) : null;
+}
+function paybackTexto(meses){
+  if(meses > 60) return 'mais de 5 anos';
+  if(meses < 12) return meses + (meses === 1 ? ' mês' : ' meses');
+  const anos = Math.floor(meses/12), resto = Math.round(meses%12);
+  return anos + (anos===1?' ano':' anos') + (resto ? ` e ${resto} ${resto===1?'mês':'meses'}` : '');
 }
 
 /* vencimentos: documentação de cada carro + gastos com data de próximo vencimento */
@@ -915,44 +946,49 @@ function telaManutencao(){
 function telaBalanco(){
   const tot = {compra:0, compraAtiva:0, receb:0, gasto:0, vendas:0};
 
+  const linhaVal = (rot, val, cls) => `<span><span class="motorista">${rot}</span> <b class="num ${cls||''}">${val}</b></span>`;
+
   const cardAtivo = c => {
-    const r = recebidoTotal(c.id), g = gastoTotal(c.id), lucro = r-g;
-    const compra = Number(c.compra||0);
-    const pct = compra ? Math.min(Math.max(lucro/compra,0),1)*100 : 0;
-    const falta = compra - lucro;
-    const semanas = (falta > 0 && c.valor) ? Math.ceil(falta/c.valor) : 0;
+    const e = economia(c);
     return `<article class="carro">
       <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
       <div class="modelo">${esc(c.modelo)}</div>
-      <div class="motorista">Comprado por ${compra?moeda(compra):'valor não informado'}</div>
+      <div class="motorista">Comprado por ${e.compra?moeda(e.compra):'valor não informado'}</div>
       <div class="rodape" style="display:block">
-        ${compra?`<div class="barra"><i style="width:${pct}%"></i></div>
-          <div class="motorista">${falta<=0
-            ? `Já se pagou — lucro de ${moeda(lucro)} acima da compra`
-            : `Recuperou ${moeda(Math.max(lucro,0))} dos ${moeda(compra)}${semanas?` · faltam cerca de ${semanas} semanas`:''}`}</div>`:''}
-        <div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap">
-          <span><span class="motorista">Recebeu</span> <b class="num v-pago">${moeda(r)}</b></span>
-          <span><span class="motorista">Gastou</span> <b class="num v-atr">${moeda(g)}</b></span>
-          <span><span class="motorista">Lucro</span> <b class="num">${moeda(lucro)}</b></span>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px">
+          ${linhaVal('Rendeu de aluguel', moeda(e.receita), 'v-pago')}
+          ${linhaVal('Gastou', moeda(e.despesas), 'v-atr')}
+          ${linhaVal('Sobrou', (e.resultadoOp>=0?'+':'')+moeda(e.resultadoOp), e.resultadoOp>=0?'v-pago':'v-atr')}
         </div>
+        ${e.compra ? `<div class="barra"><i style="width:${e.pct}%"></i></div>
+          <div class="motorista">${e.falta<=0
+            ? `Já se pagou — ${moeda(-e.falta)} acima da compra`
+            : `Recuperou ${Math.round(e.pct)}% dos ${moeda(e.compra)}` +
+              (e.maduro && e.paybackMeses ? ` · falta ~${paybackTexto(e.paybackMeses)}` : '')}</div>
+          <div class="motorista" style="margin-top:4px">Rendimento: ${e.maduro
+            ? `<b class="${e.rendAnual>=0?'v-pago':'v-atr'}">${e.rendAnual>=0?'+':''}${e.rendAnual}% ao ano</b> <sup>*</sup>`
+            : 'ainda cedo pra calcular (menos de 3 meses)'}</div>` : ''}
       </div>
     </article>`;
   };
   const cardVendido = c => {
-    const r = recebidoTotal(c.id), g = gastoTotal(c.id), compra = Number(c.compra||0), venda = Number(c.vendaValor||0);
-    const resultado = r + venda - g - compra;
+    const e = economia(c);
+    const compra = e.compra, venda = Number(c.vendaValor||0);
+    const resultado = e.receita + venda - e.despesas - compra;
+    const pctCompra = compra ? Math.round(resultado / compra * 100) : null;
     return `<article class="carro">
       <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
       <div class="modelo">${esc(c.modelo)}</div>
       <div class="motorista">Vendido em ${dataBR(c.vendaData)}${venda?' por '+moeda(venda):''}</div>
       <div class="rodape" style="display:block">
         <div style="display:flex;gap:14px;flex-wrap:wrap">
-          <span><span class="motorista">Aluguel</span> <b class="num v-pago">${moeda(r)}</b></span>
-          <span><span class="motorista">Gastos</span> <b class="num v-atr">${moeda(g)}</b></span>
-          <span><span class="motorista">Compra</span> <b class="num">${compra?moeda(compra):'—'}</b></span>
+          ${linhaVal('Aluguel', moeda(e.receita), 'v-pago')}
+          ${linhaVal('Gastos', moeda(e.despesas), 'v-atr')}
+          ${linhaVal('Compra', compra?moeda(compra):'—')}
         </div>
         <div class="motorista" style="margin-top:8px">Resultado final:
-          <b class="num ${resultado>=0?'v-pago':'v-atr'}">${resultado>=0?'+':''}${moeda(resultado)}</b></div>
+          <b class="num ${resultado>=0?'v-pago':'v-atr'}">${resultado>=0?'+':''}${moeda(resultado)}</b>
+          ${pctCompra!=null ? ` <span class="motorista">(${pctCompra>=0?'+':''}${pctCompra}% sobre a compra, em ${Math.round(e.meses)} ${Math.round(e.meses)===1?'mês':'meses'})</span>` : ''}</div>
       </div>
     </article>`;
   };
@@ -968,20 +1004,22 @@ function telaBalanco(){
   });
   const ativos = carrosAtivos(), vendidos = carrosVendidos();
   const operacional = tot.receb - tot.gasto;
+  const rendFrota = rendimentoFrota();
 
   $('conteudo').innerHTML = `<h2>Balanço da frota</h2>`
     + `<div class="resumo" style="margin:0 0 6px">
         <div><span>Recebido de aluguel</span><strong class="v-pago">${moeda(tot.receb)}</strong></div>
         <div><span>Gasto com a frota</span><strong class="v-atr">${moeda(tot.gasto)}</strong></div>
        </div>
-       <div class="resumo" style="margin:0 0 ${vendidos.length?'6px':'14px'}">
+       <div class="resumo" style="margin:0 0 6px">
         <div><span>Aluguel menos gastos</span><strong class="${operacional>=0?'v-pago':'v-atr'}">${operacional>=0?'+':''}${moeda(operacional)}</strong></div>
         <div><span>Investido na frota atual</span><strong>${moeda(tot.compraAtiva)}</strong></div>
-       </div>`
-    + (vendidos.length ? `<div class="resumo" style="margin:0 0 14px">
-        <div><span>Vendas recebidas</span><strong class="v-pago">${moeda(tot.vendas)}</strong></div>
-        <div><span>Resultado dos vendidos</span><strong class="${resVendidos>=0?'v-pago':'v-atr'}">${resVendidos>=0?'+':''}${moeda(resVendidos)}</strong></div>
-       </div>` : '')
+       </div>
+       <div class="resumo" style="margin:0 0 4px">
+        <div><span>Rendimento da frota</span><strong class="${rendFrota==null?'':(rendFrota>=0?'v-pago':'v-atr')}">${rendFrota==null?'—':`${rendFrota>=0?'+':''}${rendFrota}% ao ano`}</strong></div>
+        ${vendidos.length ? `<div><span>Resultado dos vendidos</span><strong class="${resVendidos>=0?'v-pago':'v-atr'}">${resVendidos>=0?'+':''}${moeda(resVendidos)}</strong></div>` : ''}
+       </div>
+       <p class="motorista" style="font-size:13px;margin:0 0 14px">* o rendimento não conta a desvalorização do carro — o número real é um pouco menor.</p>`
     + (ativos.length ? ativos.map(cardAtivo).join('')
         : (vendidos.length ? '' : `<div class="vazio"><p>Cadastre os carros com o valor de compra pra acompanhar quando cada um se paga.</p></div>`))
     + (vendidos.length ? `<h3 class="sec">Vendidos</h3>` + vendidos.map(cardVendido).join('') : '');
