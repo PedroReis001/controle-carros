@@ -904,10 +904,13 @@ function telaSemana(sem){
     + (offsetSemana!==0
         ? `<button class="btn-vazio btn-largo" onclick="voltarHoje()">← Voltar pra semana de hoje</button>` : '')
     + (naOficina.length
-        ? `<h3 class="sec">Na oficina</h3>` + naOficina.map(({c, ind}) => `<div class="alerta">
-            <div><strong>${esc(c.placa)} · ${esc(c.motorista||'sem motorista')}</strong>
-            <small>${esc(textoNaOficina(ind))}${ind.suspende?` desde ${dataBR(ind.inicio)}`:''}</small></div>
-            <button class="btn-vazio" onclick="verCarro('${c.id}')">Ver</button>
+        ? `<h3 class="sec">Na oficina</h3>` + naOficina.map(({c, ind}) => `<div class="alerta" style="display:block">
+            <strong>${esc(c.placa)} · ${esc(c.motorista||'sem motorista')}</strong>
+            <small style="display:block;color:var(--media)">${esc(textoNaOficina(ind))}${ind.suspende?` desde ${dataBR(ind.inicio)}`:''}</small>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button class="btn-vazio" onclick="verCarro('${c.id}')">Ver</button>
+              <button class="btn" onclick="carroVoltou('${ind.id}')">Carro voltou</button>
+            </div>
           </div>`).join('') : '')
     + (hoje_.length
         ? `<h3 class="sec">Hoje</h3>` + hoje_.map(c => cardCarro(c, sem)).join('') : '')
