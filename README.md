@@ -97,6 +97,24 @@ gastos) e o % sobre a compra.
 > O rendimento **não desconta a desvalorização** do carro — o retorno real
 > é um pouco menor. Isso está avisado na tela.
 
+## Carro parado (oficina)
+
+Ao lançar um gasto, marque **"Carro ficou parado"** e informe as datas
+(a de volta pode ficar em branco enquanto o carro ainda está na oficina).
+Também dá pra registrar um período parado sem gasto pelo **Ver carro →
+Registrar carro parado**.
+
+Com **"Não cobrar o aluguel nesses dias"** ligado, a caderneta cobra só os
+dias em que o carro rodou naquela semana (`aluguel ÷ 7 × dias rodados`).
+Períodos que se sobrepõem contam cada dia uma vez só. A semana afetada
+mostra o motivo (*"3 dias parado · cobra R$ 274 (não R$ 480)"*).
+
+Carro com período em aberto aparece como **"Na oficina há N dias"** na aba
+Semana e no Ver carro, e não entra em "Hoje" nem no "Falta receber".
+
+Guardado no array `dados.indisponibilidades`
+(`{id, carro, gasto?, inicio, fim, suspende, obs}`).
+
 ## Como os dados são salvos
 
 Como tudo fica em uma linha só, dois aparelhos editando ao mesmo tempo
