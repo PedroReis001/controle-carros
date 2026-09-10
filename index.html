@@ -330,7 +330,7 @@ async function sair(){
   if(timerSync){ clearInterval(timerSync); timerSync = null; }
   fechar();
   await sb.auth.signOut();
-  dados = {carros:[], pagamentos:[], gastos:[], exemplo:false};
+  dados = {carros:[], pagamentos:[], gastos:[], indisponibilidades:[], exemplo:false};
   baseRemoto = null;
   mostrarTelaLogin();
 }
@@ -483,7 +483,7 @@ const $ = id => document.getElementById(id);
 const moeda = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:0,maximumFractionDigits:2});
 const esc = s => String(s??'').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
 
-let dados = {carros:[], pagamentos:[], gastos:[], exemplo:false};
+let dados = {carros:[], pagamentos:[], gastos:[], indisponibilidades:[], exemplo:false};
 let aba = 'semana', offsetSemana = 0;
 let baseRemoto = null;      // último estado confirmado no servidor — usado pra mesclar antes de gravar
 let appLiberado = false;    // vira true só quando os dados carregaram de verdade
@@ -509,6 +509,7 @@ function rotuloSemana(seg){
 }
 const dataBR = s => s ? new Date(s+'T12:00').toLocaleDateString('pt-BR') : '';
 const diasAte = s => Math.round((new Date(s+'T12:00') - new Date(hoje()+'T12:00'))/86400000);
+const addDias = (s, n) => { const d = new Date(s+'T12:00'); d.setDate(d.getDate()+n); return iso(d); };
 
 /* ---------------- armazenamento ----------------
  * Tudo fica numa linha só do Supabase (um JSON grande). Pra dois aparelhos
@@ -524,7 +525,7 @@ function indexarPorId(arr){
 }
 function mesclar(base, local, remoto){
   const saida = { exemplo: !!(local.exemplo && remoto.exemplo) };
-  ['carros','pagamentos','gastos'].forEach(col => {
+  ['carros','pagamentos','gastos','indisponibilidades'].forEach(col => {
     const b = indexarPorId(base && base[col]);
     const l = indexarPorId(local[col]);
     const r = indexarPorId(remoto[col]);
@@ -560,8 +561,14 @@ async function carregar(){
   let novos;
   try{ novos = JSON.parse(bruto.value); }
   catch(e){ throw new Error('Os dados salvos estão ilegíveis — não vou gravar por cima.'); }
-  dados = novos;
+  dados = normalizar(novos);
   baseRemoto = clonar(dados);
+}
+/* garante que os arrays esperados existem (dados antigos não têm indisponibilidades) */
+function normalizar(d){
+  d = d || {};
+  ['carros','pagamentos','gastos','indisponibilidades'].forEach(k => { if(!Array.isArray(d[k])) d[k] = []; });
+  return d;
 }
 
 async function salvar(){
@@ -590,7 +597,7 @@ async function recarregarSuave(){
   if(!appLiberado || salvando) return;
   if($('painel').classList.contains('aberto')) return;
   try{
-    const remoto = JSON.parse((await window.storage.get(CHAVE)).value);
+    const remoto = normalizar(JSON.parse((await window.storage.get(CHAVE)).value));
     if(JSON.stringify(remoto) !== JSON.stringify(dados)){
       dados = remoto;
       baseRemoto = clonar(remoto);
@@ -665,6 +672,9 @@ function semente(){
        oficina:'Auto Center Campo Grande',km:190000,valor:3800,status:'Concluída',proximo:'',obs:''},
       {id:'g6b',carro:'c5',data:daqui(-240),categoria:'Pneus',descricao:'Jogo de pneus',
        oficina:'Oficina do Marcos — Méier',km:182000,valor:1100,status:'Concluída',proximo:'',obs:''}
+    ],
+    indisponibilidades:[
+      {id:'i1',carro:'c2',gasto:'g2',inicio:daqui(-13),fim:daqui(-11),suspende:true,obs:'Sem o carro durante a troca de embreagem'}
     ]
   };
 }
@@ -680,12 +690,39 @@ const pagoNaSemana = (cid,sem) => dados.pagamentos.filter(p=>p.carro===cid&&p.se
 const recebidoTotal = cid => dados.pagamentos.filter(p=>p.carro===cid).reduce((t,p)=>t+Number(p.valor),0);
 const gastoTotal = cid => dados.gastos.filter(g=>g.carro===cid&&g.status!=='Agendada').reduce((t,g)=>t+Number(g.valor),0);
 
+/* ---------------- indisponibilidade (carro parado) ---------------- *
+ * Cada registro: {id, carro, gasto?, inicio, fim|'', suspende, obs}.
+ * fim vazio = ainda parado (conta até hoje). "suspende" = não cobra o
+ * aluguel nesses dias. Períodos que se sobrepõem contam cada dia 1× só. */
+function indispDoCarro(cid){ return dados.indisponibilidades.filter(x => x.carro === cid && x.inicio); }
+function indispAbertaAgora(cid){
+  const h = hoje();
+  return indispDoCarro(cid).find(x => x.inicio <= h && (!x.fim || x.fim >= h));
+}
+/* dias da semana [semSeg..+6] cobertos por indisponibilidade COM suspensão */
+function diasSuspensosNaSemana(cid, semSeg){
+  const fimSem = addDias(semSeg, 6), h = hoje();
+  const dias = new Set();
+  indispDoCarro(cid).filter(x => x.suspende).forEach(x => {
+    let d = x.inicio > semSeg ? x.inicio : semSeg;
+    const ate = (x.fim || h) < fimSem ? (x.fim || h) : fimSem;
+    while(d <= ate){ dias.add(d); d = addDias(d, 1); }
+  });
+  return dias.size;   // 0..7
+}
+function esperadoNaSemana(carro, sem){
+  const dias = diasSuspensosNaSemana(carro.id, sem);
+  return { esperado: Math.round(Number(carro.valor||0) * (7 - dias) / 7), diasSusp: dias };
+}
+
 function situacao(carro, sem){
   const pago = pagoNaSemana(carro.id, sem);
-  if(pago >= carro.valor) return {tipo:'pago', texto:'Pago', pago};
+  const { esperado, diasSusp } = esperadoNaSemana(carro, sem);
   const passada = sem < iso(segundaDe(new Date()));
-  if(pago > 0) return {tipo:passada?'atr':'pend', texto:`Falta ${moeda(carro.valor-pago)}`, pago};
-  return {tipo:passada?'atr':'pend', texto:passada?'Não pagou':'A receber', pago};
+  if(esperado === 0) return {tipo:'pago', texto:'Não cobra', pago, esperado, diasSusp};
+  if(pago >= esperado) return {tipo:'pago', texto:'Pago', pago, esperado, diasSusp};
+  if(pago > 0) return {tipo:passada?'atr':'pend', texto:`Falta ${moeda(esperado-pago)}`, pago, esperado, diasSusp};
+  return {tipo:passada?'atr':'pend', texto:passada?'Não pagou':'A receber', pago, esperado, diasSusp};
 }
 
 /* ---------------- caderneta (dívida acumulada) ---------------- *
@@ -714,9 +751,10 @@ function caderneta(carro){
   const valor = Number(carro.valor) || 0;
   const semanas = semanasCobranca(carro).map(s => {
     const pago = pagoNaSemana(carro.id, s);
-    return { semana:s, pago, falta: valor - pago };
+    const { esperado, diasSusp } = esperadoNaSemana(carro, s);
+    return { semana:s, pago, diasSusp, valorCheio: valor, esperadoSemana: esperado, falta: esperado - pago };
   });
-  const esperado = valor * semanas.length;
+  const esperado = semanas.reduce((t, x) => t + x.esperadoSemana, 0);
   const pago = semanas.reduce((t, x) => t + x.pago, 0);
   return { semanas, esperado, pago, saldo: esperado - pago };
 }
@@ -792,19 +830,32 @@ const bannerExemplo = () => `<div class="aviso"><span>Estes carros são só exem
 
 function voltarHoje(){ offsetSemana = 0; render(true); }
 
-/* Carros cujo dia de pagamento é hoje e que ainda não quitaram esta semana. */
+/* Carros cujo dia de pagamento é hoje e que ainda não quitaram esta semana.
+   (não conta os que estão parados na oficina com cobrança suspensa) */
 function motoristasDeHoje(sem){
   if(offsetSemana !== 0) return [];
   const nomeHoje = new Date().toLocaleDateString('pt-BR', { weekday:'long' }).toLowerCase();
-  return carrosAtivos().filter(c =>
-    (c.dia || '').toLowerCase() === nomeHoje &&
-    pagoNaSemana(c.id, sem) < Number(c.valor));
+  return carrosAtivos().filter(c => {
+    const ind = indispAbertaAgora(c.id);
+    if(ind && ind.suspende) return false;
+    return (c.dia || '').toLowerCase() === nomeHoje &&
+      pagoNaSemana(c.id, sem) < esperadoNaSemana(c, sem).esperado;
+  });
+}
+function textoNaOficina(ind){
+  const dias = -diasAte(ind.inicio);   // dias desde que entrou
+  const q = dias <= 0 ? 'desde hoje' : dias === 1 ? 'há 1 dia' : `há ${dias} dias`;
+  return `Na oficina ${q}${ind.suspende?' · sem cobrança':''}`;
 }
 
 function telaSemana(sem){
   const ativos = carrosAtivos();
-  const total = ativos.reduce((t,c)=>t+Number(c.valor),0);
-  const receb = ativos.reduce((t,c)=>t+Math.min(pagoNaSemana(c.id,sem),c.valor),0);
+  const naSemana = c => {
+    const ind = offsetSemana===0 ? indispAbertaAgora(c.id) : null;
+    return { esp: esperadoNaSemana(c, sem).esperado, pago: pagoNaSemana(c.id, sem), oficina: ind && ind.suspende ? ind : null };
+  };
+  let total = 0, receb = 0;
+  ativos.forEach(c => { const x = naSemana(c); if(x.oficina) return; total += x.esp; receb += Math.min(x.pago, x.esp); });
   $('resumo').innerHTML = `
     <div><span>Recebido</span><strong class="v-pago">${moeda(receb)}</strong></div>
     <div><span>Falta receber</span><strong class="v-falta">${moeda(Math.max(total-receb,0))}</strong></div>`;
@@ -818,6 +869,8 @@ function telaSemana(sem){
   const ordem = {atr:0,pend:1,pago:2};
   const lista = [...ativos].sort((a,b)=>ordem[situacao(a,sem).tipo]-ordem[situacao(b,sem).tipo]);
   const hoje_ = motoristasDeHoje(sem);
+  const naOficina = offsetSemana===0
+    ? ativos.map(c => ({ c, ind: indispAbertaAgora(c.id) })).filter(x => x.ind) : [];
   const devendo = ativos
     .map(c => ({ c, cad: caderneta(c) }))
     .filter(x => x.cad.saldo > 0)
@@ -825,14 +878,20 @@ function telaSemana(sem){
 
   const cardCarro = (c, sem) => {
     const s = situacao(c,sem);
-    const falta = Math.max(Number(c.valor) - s.pago, 0);
+    const ind = offsetSemana===0 ? indispAbertaAgora(c.id) : null;
+    const falta = Math.max(s.esperado - s.pago, 0);
     return `<article class="carro">
       <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
       <div class="modelo">${esc(c.modelo)}</div>
       <div class="motorista">${esc(c.motorista||'Sem motorista')} · paga ${esc(c.dia||'—')}</div>
       <div class="rodape">
-        <span class="selo s-${s.tipo}">${s.texto}</span><span class="cresce"></span>
-        ${s.tipo==='pago' ? `<span class="num v-pago">${moeda(s.pago)}</span>`
+        ${ind && ind.suspende
+          ? `<span class="selo s-pend">🔧 ${esc(textoNaOficina(ind))}</span>`
+          : `<span class="selo s-${s.tipo}">${s.texto}</span>` +
+            (s.diasSusp>0 && s.esperado>0 ? ` <small class="motorista">(${s.diasSusp} dia${s.diasSusp>1?'s':''} parado)</small>` : '')}
+        <span class="cresce"></span>
+        ${(ind && ind.suspende) || s.tipo==='pago'
+          ? (s.tipo==='pago' && !(ind && ind.suspende) ? `<span class="num v-pago">${moeda(s.pago)}</span>` : '')
           : `<button class="btn-vazio" onclick="formPagamento('${c.id}')">Outro valor</button>
              <button class="btn" onclick="pagarTudo('${c.id}')">Pagou ${moeda(falta)}</button>`}
       </div>
@@ -842,6 +901,12 @@ function telaSemana(sem){
   $('conteudo').innerHTML = (dados.exemplo?bannerExemplo():'')
     + (offsetSemana!==0
         ? `<button class="btn-vazio btn-largo" onclick="voltarHoje()">← Voltar pra semana de hoje</button>` : '')
+    + (naOficina.length
+        ? `<h3 class="sec">Na oficina</h3>` + naOficina.map(({c, ind}) => `<div class="alerta">
+            <div><strong>${esc(c.placa)} · ${esc(c.motorista||'sem motorista')}</strong>
+            <small>${esc(textoNaOficina(ind))}${ind.suspende?` desde ${dataBR(ind.inicio)}`:''}</small></div>
+            <button class="btn-vazio" onclick="verCarro('${c.id}')">Ver</button>
+          </div>`).join('') : '')
     + (hoje_.length
         ? `<h3 class="sec">Hoje</h3>` + hoje_.map(c => cardCarro(c, sem)).join('') : '')
     + (venc.length ? `<h3 class="sec">Precisa de atenção</h3>` + venc.map(v=>{
@@ -873,6 +938,7 @@ function telaCarros(){
 
   const cardAtivo = c => {
     const saldo = caderneta(c).saldo;
+    const ind = indispAbertaAgora(c.id);
     return `<article class="carro">
       <div class="placa"><i>BRASIL</i><b>${esc(c.placa)}</b></div>
       <div class="modelo">${esc(c.modelo)}</div>
@@ -880,6 +946,7 @@ function telaCarros(){
       <div class="rodape">
         <span class="num">${moeda(c.valor)}</span><span class="motorista">por semana</span>
         <span class="cresce"></span>
+        ${ind ? `<span class="selo s-pend">🔧 Na oficina</span>` : ''}
         ${saldo > 0 ? `<span class="selo s-atr">Devendo ${moeda(saldo)}</span>`
           : saldo < 0 ? `<span class="selo s-pago">Adiantado ${moeda(-saldo)}</span>` : ''}
         ${c.doc==='Pendente'?`<span class="selo s-atr">Documentação pendente</span>`:''}
@@ -1035,6 +1102,8 @@ function verCarro(cid){
   const pags = dados.pagamentos.filter(p=>p.carro===cid).sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
   const gs = dados.gastos.filter(g=>g.carro===cid).sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
   const vendido = ehVendido(c);
+  const indAberta = indispAbertaAgora(cid);
+  const paradas = indispDoCarro(cid).slice().sort((a,b)=>b.inicio.localeCompare(a.inicio));
   const cad = caderneta(c);
   const recentes = cad.semanas.slice(-8).reverse();
   const rotSit = vendido ? { atr:'Ficou devendo', ok:'Ficou quitado', ad:'Ficou adiantado' }
@@ -1046,6 +1115,9 @@ function verCarro(cid){
     <p class="sub">${esc(c.modelo)} · ${esc(c.motorista||'sem motorista')}${c.telefone?' · '+esc(c.telefone):''}</p>
     ${vendido ? `<div class="aviso" style="background:var(--pago-f);margin:0 0 12px">
       Vendido em ${dataBR(c.vendaData)}${Number(c.vendaValor)?' por '+moeda(c.vendaValor):''}</div>` : ''}
+    ${indAberta && !vendido ? `<div class="aviso" style="margin:0 0 12px;flex-wrap:nowrap">
+      <span>🔧 ${esc(textoNaOficina(indAberta))} (desde ${dataBR(indAberta.inicio)})</span>
+      <button onclick="carroVoltou('${indAberta.id}')">Carro voltou</button></div>` : ''}
     <div class="resumo" style="margin:12px 0">
       <div><span>Recebeu</span><strong class="v-pago">${moeda(recebidoTotal(cid))}</strong></div>
       <div><span>Gastou</span><strong class="v-atr">${moeda(gastoTotal(cid))}</strong></div>
@@ -1057,11 +1129,14 @@ function verCarro(cid){
     </div>
     ${recentes.length ? recentes.map(x => {
       const quitado = x.falta <= 0;
+      const nota = x.diasSusp > 0
+        ? `${x.diasSusp} dia${x.diasSusp>1?'s':''} parado · cobra ${moeda(x.esperadoSemana)} (não ${moeda(x.valorCheio)})`
+        : (quitado ? 'Pago ' + moeda(x.pago) : x.pago > 0 ? 'Pagou ' + moeda(x.pago) + ' — falta ' + moeda(x.falta) : 'Não pagou');
       return `<div class="item">
-        <div><strong>${dataBR(x.semana)}</strong>
-          <small>${quitado ? 'Pago ' + moeda(x.pago) : x.pago > 0 ? 'Pagou ' + moeda(x.pago) + ' — falta ' + moeda(x.falta) : 'Não pagou'}</small></div>
-        <div class="dir">${quitado
-          ? '<b class="num v-pago">✓</b>'
+        <div><strong>${dataBR(x.semana)}</strong><small>${nota}</small></div>
+        <div class="dir">${x.esperadoSemana === 0
+          ? '<b class="num motorista">—</b>'
+          : quitado ? '<b class="num v-pago">✓</b>'
           : vendido ? `<b class="num v-atr">${moeda(x.falta)}</b>`
           : `<button class="btn" onclick="formPagamento('${cid}','${x.semana}')">Receber</button>`}</div>
       </div>`;
@@ -1076,13 +1151,18 @@ function verCarro(cid){
     ${gs.length?`<h3 class="sec">Últimos gastos</h3>`+gs.map(g=>`<div class="item">
       <div><strong>${esc(g.categoria)}</strong><small>${esc(g.descricao||'')} · ${dataBR(g.data)}</small></div>
       <div class="dir"><b class="num">${moeda(g.valor)}</b></div></div>`).join(''):''}
+    ${paradas.length?`<h3 class="sec">Períodos parado</h3>`+paradas.map(x=>`<div class="item">
+      <div><strong>${dataBR(x.inicio)} ${x.fim?'a '+dataBR(x.fim):'— ainda parado'}</strong>
+        <small>${x.suspende?'sem cobrança':'cobrança normal'}${x.obs?' · '+esc(x.obs):''}</small></div>
+      <div class="dir"><button class="apagar" onclick="apagarParada('${x.id}')">Excluir</button></div></div>`).join(''):''}
     <div class="acoes">
       <button class="btn-vazio" onclick="formCarro('${cid}')">Editar carro</button>
       ${vendido
         ? `<button class="btn" onclick="reativarCarro('${cid}')">Reativar carro</button>`
         : `<button class="btn" onclick="formGasto(null,'${cid}')">Lançar gasto</button>`}
     </div>
-    ${vendido ? '' : `<div style="text-align:center;margin-top:16px">
+    ${vendido ? '' : `<div style="text-align:center;margin-top:16px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
+      <button class="apagar" onclick="formParada('${cid}')">Registrar carro parado</button>
       <button class="apagar" onclick="formVenda('${cid}')">Marcar como vendido</button></div>`}
     <div style="text-align:center;margin-top:14px"><button class="btn-vazio" style="border:none" onclick="fechar()">Fechar</button></div>`);
 }
@@ -1127,13 +1207,60 @@ async function reativarCarro(cid){
   });
 }
 
+/* ---------------- carro parado (indisponibilidade) ---------------- */
+function formParada(cid, gid, ini){
+  const c = carroDe(cid);
+  const existente = gid ? dados.indisponibilidades.find(x => x.gasto === gid) : null;
+  const x = existente || { inicio: ini || hoje(), fim:'', suspende:true, obs:'' };
+  abrir(`<h3>Carro parado — ${esc(c.placa)}</h3>
+    <p class="sub">Dias parados com cobrança suspensa não entram na caderneta do motorista.</p>
+    <div class="dupla">
+      <div><label for="pi">Parado desde</label><input id="pi" type="date" value="${x.inicio||''}"></div>
+      <div><label for="pf2">Voltou em</label><input id="pf2" type="date" value="${x.fim||''}"></div>
+    </div>
+    <small class="motorista" style="display:block;margin-top:4px">Deixe "Voltou em" em branco enquanto o carro ainda estiver na oficina.</small>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:600">
+      <input type="checkbox" id="ps" ${x.suspende?'checked':''} style="width:auto"> Não cobrar o aluguel nesses dias</label>
+    <label for="pob">Observação</label><input id="pob" value="${esc(x.obs||'')}" placeholder="Motor fundido, aguardando peça...">
+    <div class="acoes">
+      <button class="btn-vazio" onclick="verCarro('${cid}')">Cancelar</button>
+      <button class="btn" onclick="salvarParada('${cid}',${gid?`'${gid}'`:'null'},${existente?`'${existente.id}'`:'null'})">Salvar</button>
+    </div>`);
+}
+async function salvarParada(cid, gid, id){
+  const inicio = $('pi').value;
+  if(!inicio) return aviso('Preencha a data de início.');
+  const fim = $('pf2').value || '';
+  if(fim && fim < inicio) return aviso('A volta não pode ser antes do início.');
+  const dados_ = { carro:cid, gasto: gid || null, inicio, fim, suspende: $('ps').checked, obs: $('pob').value.trim() };
+  const alvo = id ? dados.indisponibilidades.find(x=>x.id===id) : null;
+  if(alvo) Object.assign(alvo, dados_);
+  else dados.indisponibilidades.push({ id:novoId(), ...dados_ });
+  await salvar(); fechar(); render(); aviso('Período registrado');
+}
+async function carroVoltou(id){
+  const x = dados.indisponibilidades.find(y=>y.id===id);
+  if(!x) return;
+  const antes = x.fim;
+  x.fim = hoje();
+  await salvar(); fechar(); render();
+  avisoDesfazer('Carro de volta', async () => { x.fim = antes; await salvar(); render(); aviso('Desfeito'); });
+}
+function apagarParada(id){
+  confirmar('O período parado sai do registro e a caderneta volta a cobrar essas semanas normalmente.','Excluir período', async () => {
+    dados.indisponibilidades = dados.indisponibilidades.filter(x => x.id !== id);
+    await salvar(); fechar(); render(); aviso('Período excluído');
+  });
+}
+
 function formPagamento(cid, semArg){
   const c = carroDe(cid);
   const sem = semArg || iso(semanaAtiva());
   const segDaSem = semArg ? new Date(semArg + 'T12:00') : semanaAtiva();
-  const falta = Math.max(c.valor - pagoNaSemana(cid,sem), 0);
+  const { esperado, diasSusp } = esperadoNaSemana(c, sem);
+  const falta = Math.max(esperado - pagoNaSemana(cid,sem), 0);
   abrir(`<h3>${esc(c.placa)} · ${esc(c.motorista||'sem motorista')}</h3>
-    <p class="sub">Semana de ${rotuloSemana(segDaSem)}</p>
+    <p class="sub">Semana de ${rotuloSemana(segDaSem)}${diasSusp>0?` · ${diasSusp} dia${diasSusp>1?'s':''} parado (esperado ${moeda(esperado)})`:''}</p>
     <label for="pv">Quanto ele pagou</label>
     <input id="pv" type="number" inputmode="decimal" step="0.01" value="${falta}">
     <div class="dupla">
@@ -1165,7 +1292,7 @@ function formaHabitual(cid){
 /* Um toque: lança o que falta da semana atual, com a data de hoje. */
 async function pagarTudo(cid){
   const c = carroDe(cid), sem = iso(semanaAtiva());
-  const falta = Math.max(Number(c.valor) - pagoNaSemana(cid, sem), 0);
+  const falta = Math.max(esperadoNaSemana(c, sem).esperado - pagoNaSemana(cid, sem), 0);
   if(falta <= 0) return;
   const id = novoId();
   dados.pagamentos.push({ id, carro:cid, semana:sem, valor:falta, data:hoje(), forma:formaHabitual(cid) });
@@ -1236,6 +1363,7 @@ function formGasto(gid, cidPadrao){
   const g = gid ? dados.gastos.find(x=>x.id===gid)
                 : {carro:cidPadrao||listaCarros[0].id,data:hoje(),categoria:'Manutenção',descricao:'',
                    oficina:'',km:'',valor:'',status:'Concluída',proximo:'',obs:''};
+  const indLig = gid ? dados.indisponibilidades.find(x => x.gasto === gid) : null;
   // se editando um gasto de carro vendido, mantém a opção dele na lista
   const opcoes = gid && !listaCarros.some(c=>c.id===g.carro) ? [...listaCarros, carroDe(g.carro)] : listaCarros;
   abrir(`<h3>${gid?'Editar gasto':'Novo gasto ou serviço'}</h3>
@@ -1257,6 +1385,17 @@ function formGasto(gid, cidPadrao){
         <select id="gs">${['Concluída','Agendada','Pendente'].map(o=>`<option ${o===g.status?'selected':''}>${o}</option>`).join('')}</select></div>
       <div><label for="gp">Próxima vez em</label><input id="gp" type="date" value="${g.proximo||''}"></div>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:16px;font-weight:600">
+      <input type="checkbox" id="gind" ${indLig?'checked':''} style="width:auto"
+        onchange="$('gindBox').hidden=!this.checked;if(this.checked&&!$('gii').value)$('gii').value=$('gd').value"> Carro ficou parado (não rodou)</label>
+    <div id="gindBox" ${indLig?'':'hidden'}>
+      <div class="dupla">
+        <div><label for="gii">Parado desde</label><input id="gii" type="date" value="${indLig?indLig.inicio:''}"></div>
+        <div><label for="gif">Voltou em</label><input id="gif" type="date" value="${indLig?indLig.fim:''}"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        <input type="checkbox" id="gis" ${!indLig||indLig.suspende?'checked':''} style="width:auto"> Não cobrar o aluguel nesses dias</label>
+    </div>
     <div class="acoes">
       <button class="btn-vazio" onclick="fechar()">Cancelar</button>
       <button class="btn" onclick="salvarGasto(${gid?`'${gid}'`:'null'})">Salvar gasto</button>
@@ -1275,10 +1414,24 @@ async function salvarGasto(gid){
   if(gid) Object.assign(dados.gastos.find(x=>x.id===gid), d);
   else { novoIdGasto = novoId(); dados.gastos.push({id:novoIdGasto,...d}); }
   if(carro && km > Number(carro.km||0)) carro.km = km;
+
+  // indisponibilidade vinculada a esse gasto
+  const gastoId = gid || novoIdGasto;
+  const indAtual = dados.indisponibilidades.find(x => x.gasto === gastoId);
+  if($('gind') && $('gind').checked){
+    const ini = $('gii').value || d.data;
+    const reg = { carro:cid, gasto:gastoId, inicio:ini, fim:$('gif').value||'', suspende:$('gis').checked, obs:indAtual?indAtual.obs||'':'' };
+    if(indAtual) Object.assign(indAtual, reg);
+    else dados.indisponibilidades.push({ id:novoId(), ...reg });
+  }else if(indAtual){
+    dados.indisponibilidades = dados.indisponibilidades.filter(x => x.id !== indAtual.id);
+  }
+
   await salvar(); fechar(); render();
   if(novoIdGasto){
     avisoDesfazer('Gasto lançado', async ()=>{
       dados.gastos = dados.gastos.filter(g=>g.id!==novoIdGasto);
+      dados.indisponibilidades = dados.indisponibilidades.filter(x=>x.gasto!==novoIdGasto);
       if(carro) carro.km = kmAntes;
       await salvar(); render(); aviso('Desfeito');
     });
@@ -1305,6 +1458,7 @@ function apagarCarro(cid){
   if(temHistorico(cid)) return aviso('Esse carro tem lançamentos. Marque como vendido pra guardar o histórico.');
   confirmar('Esse carro não tem nenhum pagamento nem gasto. Excluir de vez?','Excluir carro', async ()=>{
     dados.carros = dados.carros.filter(c=>c.id!==cid);
+    dados.indisponibilidades = dados.indisponibilidades.filter(x=>x.carro!==cid);
     await salvar(); fechar(); render(); aviso('Carro excluído');
   });
 }
@@ -1317,12 +1471,13 @@ function apagarPagamento(pid){
 function apagarGasto(gid){
   confirmar('Este gasto sai da manutenção e do balanço do carro.','Excluir gasto', async ()=>{
     dados.gastos = dados.gastos.filter(g=>g.id!==gid);
+    dados.indisponibilidades.forEach(x=>{ if(x.gasto===gid) x.gasto = null; });  // o período parado continua
     await salvar(); fechar(); render(); aviso('Gasto excluído');
   });
 }
 function limparExemplo(){
   confirmar('Os quatro carros de exemplo e os lançamentos deles serão removidos. Depois é só cadastrar os carros de verdade.','Limpar exemplos', async ()=>{
-    dados = {carros:[],pagamentos:[],gastos:[],exemplo:false};
+    dados = {carros:[],pagamentos:[],gastos:[],indisponibilidades:[],exemplo:false};
     await salvar(); aba='carros'; fechar(); render(true); aviso('Pronto, agora é só cadastrar os carros');
   });
 }
