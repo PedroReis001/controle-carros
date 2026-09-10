@@ -794,7 +794,7 @@ function paybackTexto(meses){
 }
 
 /* vencimentos: documentação de cada carro + gastos com data de próximo vencimento */
-function vencimentos(){
+function vencimentos(limiteDias = 30){
   const lista = [];
   carrosAtivos().forEach(c=>{
     if(c.docVenc) lista.push({carro:c.id, quando:c.docVenc, titulo:'Documentação do veículo',
@@ -803,7 +803,7 @@ function vencimentos(){
   dados.gastos.forEach(g=>{
     if(g.proximo && !ehVendido(carroDe(g.carro))) lista.push({carro:g.carro, quando:g.proximo, titulo:g.categoria, detalhe:g.descricao});
   });
-  return lista.filter(v=>diasAte(v.quando) <= 30).sort((a,b)=>a.quando.localeCompare(b.quando));
+  return lista.filter(v=>diasAte(v.quando) <= limiteDias).sort((a,b)=>a.quando.localeCompare(b.quando));
 }
 
 /* ---------------- render ----------------
@@ -867,7 +867,7 @@ function telaSemana(sem){
       <button class="btn" onclick="formCarro()">Cadastrar carro</button></div>`;
     return;
   }
-  const venc = vencimentos();
+  const venc = vencimentos(7);   // aqui só o urgente; o panorama de 30 dias fica na aba Manutenção
   const ordem = {atr:0,pend:1,pago:2};
   const lista = [...ativos].sort((a,b)=>ordem[situacao(a,sem).tipo]-ordem[situacao(b,sem).tipo]);
   const hoje_ = motoristasDeHoje(sem);
