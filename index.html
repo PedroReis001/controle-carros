@@ -696,8 +696,10 @@ const gastoTotal = cid => dados.gastos.filter(g=>g.carro===cid&&g.status!=='Agen
  * aluguel nesses dias. Períodos que se sobrepõem contam cada dia 1× só. */
 function indispDoCarro(cid){ return dados.indisponibilidades.filter(x => x.carro === cid && x.inicio); }
 function indispAbertaAgora(cid){
+  // "na oficina agora" = sem data de volta, ou volta marcada pra depois de hoje.
+  // Volta marcada pra hoje/ontem = carro já voltou, não aparece mais como parado.
   const h = hoje();
-  return indispDoCarro(cid).find(x => x.inicio <= h && (!x.fim || x.fim >= h));
+  return indispDoCarro(cid).find(x => x.inicio <= h && (!x.fim || x.fim > h));
 }
 /* dias da semana [semSeg..+6] cobertos por indisponibilidade COM suspensão */
 function diasSuspensosNaSemana(cid, semSeg){
@@ -1241,8 +1243,19 @@ async function salvarParada(cid, gid, id){
 async function carroVoltou(id){
   const x = dados.indisponibilidades.find(y=>y.id===id);
   if(!x) return;
+  const ontem = addDias(hoje(), -1);
+  if(ontem < x.inicio){
+    // entrou e voltou no mesmo dia — não houve dia parado, some o registro
+    const copia = clonar(x);
+    dados.indisponibilidades = dados.indisponibilidades.filter(y=>y.id!==id);
+    await salvar(); fechar(); render();
+    avisoDesfazer('Carro de volta', async () => {
+      dados.indisponibilidades.push(copia); await salvar(); render(); aviso('Desfeito');
+    });
+    return;
+  }
   const antes = x.fim;
-  x.fim = hoje();
+  x.fim = ontem;                       // último dia parado = ontem (voltou hoje)
   await salvar(); fechar(); render();
   avisoDesfazer('Carro de volta', async () => { x.fim = antes; await salvar(); render(); aviso('Desfeito'); });
 }
