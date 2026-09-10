@@ -4,7 +4,8 @@ App de página única (PWA) para controlar a frota de aluguel de carros:
 aluguel semanal por motorista, cadastro dos carros, manutenção/gastos e
 balanço de quando cada carro se paga.
 
-- **Frontend:** HTML/CSS/JS puro, tudo em [`index.html`](index.html).
+- **Frontend:** HTML/CSS/JS puro, sem build. [`index.html`](index.html) (estrutura),
+  [`style.css`](style.css) (visual), [`app.js`](app.js) (toda a lógica).
 - **Login:** [Supabase Auth](https://supabase.com) — e-mail e senha. Depois do
   primeiro acesso, cada aparelho pode criar um **código de 4 números** pra
   reabrir sem digitar tudo (fica só no aparelho, como hash; não substitui o
