@@ -2,10 +2,12 @@
  * Estratégia: rede primeiro, cai pro cache quando estiver offline.
  * Assim o app sempre pega a versão mais nova quando há internet,
  * e ainda abre (mostrando o último estado carregado) quando não há. */
-const CACHE = 'controle-carros-v1';
+const CACHE = 'controle-carros-v2';
 const ARQUIVOS = [
   './',
   './index.html',
+  './style.css',
+  './app.js',
   './manifest.json',
   './favicon-32.png',
   './icon-192.png',
