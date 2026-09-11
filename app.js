@@ -468,14 +468,25 @@ function esperadoNaSemana(carro, sem){
   return { esperado: Math.round(Number(carro.valor||0) * (7 - dias) / 7), diasSusp: dias };
 }
 
+/* dia da semana em que o aluguel do carro vence, traduzido pra "dias depois
+ * da segunda" (0=segunda ... 6=domingo). Sem dia definido, assume sexta. */
+const DIAS_SEMANA = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
+function offsetDoDia(diaNome){
+  const i = DIAS_SEMANA.indexOf(diaNome);
+  return i >= 0 ? i : 4;
+}
+function vencimentoDaSemana(carro, sem){ return addDias(sem, offsetDoDia(carro.dia)); }
+
 function situacao(carro, sem){
   const pago = pagoNaSemana(carro.id, sem);
   const { esperado, diasSusp } = esperadoNaSemana(carro, sem);
-  const passada = sem < iso(segundaDe(new Date()));
+  // "atrasado" a partir do dia seguinte ao vencimento DELE, não só quando a
+  // semana inteira (segunda a domingo) termina — cada carro tem seu dia.
+  const venceu = hoje() > vencimentoDaSemana(carro, sem);
   if(esperado === 0) return {tipo:'pago', texto:'Não cobra', pago, esperado, diasSusp};
   if(pago >= esperado) return {tipo:'pago', texto:'Pago', pago, esperado, diasSusp};
-  if(pago > 0) return {tipo:passada?'atr':'pend', texto:`Falta ${moeda(esperado-pago)}`, pago, esperado, diasSusp};
-  return {tipo:passada?'atr':'pend', texto:passada?'Não pagou':'A receber', pago, esperado, diasSusp};
+  if(pago > 0) return {tipo:venceu?'atr':'pend', texto:`Falta ${moeda(esperado-pago)}`, pago, esperado, diasSusp};
+  return {tipo:venceu?'atr':'pend', texto:venceu?'Não pagou':'A receber', pago, esperado, diasSusp};
 }
 
 /* ---------------- caderneta (dívida acumulada) ---------------- *
