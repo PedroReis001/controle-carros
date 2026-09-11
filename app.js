@@ -1,9 +1,8 @@
-// ====== CONFIGURAÇÃO DO SUPABASE ======
-// Cole aqui embaixo a URL e a chave "anon public" do seu projeto
-// (Project Settings → API).
+
+
 const SUPABASE_URL = "https://gslnpiegtvkjvngdpqhf.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_OkA5pfbvxJSShR2mMA9sNA_xJKmvJE9";
-// ====== NÃO PRECISA MEXER DAQUI PRA BAIXO ======
+
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true }
