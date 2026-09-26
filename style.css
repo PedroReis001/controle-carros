@@ -24,7 +24,8 @@ button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;backgrou
 .bloqueio-icone svg{width:34px;height:34px;fill:none;stroke:#fff;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .bloqueio-cartao h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:28px;margin:0 0 6px}
 .bloqueio-cartao p{color:var(--media);margin:0 0 22px}
-.bloqueio-nota{font-size:14px;margin-top:14px !important;color:var(--atr)}
+.bloqueio-nota{font-size:14px;margin-top:14px !important;color:var(--atr) !important;font-weight:600}
+.bloqueio-nota:not(:empty){background:var(--atr-f);padding:10px 14px;border-radius:9px}
 .bloqueio-sub{color:var(--media);font-size:15px;margin:0 0 22px}
 .pin-pontos{display:flex;gap:16px;justify-content:center;margin:0 0 26px}
 .pin-pontos i{width:14px;height:14px;border-radius:50%;border:2px solid var(--tinta);display:block}
@@ -38,6 +39,8 @@ button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;backgrou
       text-decoration:underline;background:none;border:none}
 
 header{padding:20px 18px 6px}
+.titulo-app{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;
+      letter-spacing:1.5px;text-transform:uppercase;color:var(--media);margin:0 0 10px;text-align:center}
 .semana-nav{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .semana-label{font-size:15px;font-weight:600;color:var(--media)}
 .semana-titulo{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:30px;line-height:1.05}
@@ -46,7 +49,8 @@ header{padding:20px 18px 6px}
 .seta[disabled]{opacity:.3;cursor:default}
 
 .resumo{display:flex;gap:10px;margin:16px 18px 0}
-.resumo div{flex:1;background:var(--alto);border:1.5px solid var(--linha);border-radius:10px;padding:12px 14px}
+.resumo div,.resumo button.v-tile{flex:1;background:var(--alto);border:1.5px solid var(--linha);border-radius:10px;padding:12px 14px}
+.resumo button.v-tile{text-align:left;width:100%}
 .resumo span{display:block;font-size:14px;color:var(--media);font-weight:500}
 .resumo strong{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:29px;display:block;line-height:1.1}
 .v-pago{color:var(--pago)} .v-falta{color:var(--pend)} .v-atr{color:var(--atr)}
